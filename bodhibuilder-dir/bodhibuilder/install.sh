@@ -9,17 +9,20 @@
 #
 
 ###
-# Do some checks to see if we're running this script correctly
+# Do some checks to see if we're running this script correctly.
+# must be root to run:
 if [ "$(whoami)" != "root" ]; then
     echo "Need to be root or run with sudo. Exiting."
     exit 1
 fi
 
+# must be in bodhibuilder directory:
 if [ ! "`echo $PWD | rev | cut -d/ -f1 | rev`" = "bodhibuilder" ] ; then
   echo " Not in the correct directory. Exiting."
   exit 0
 fi
 
+# must have certain files within the current path:
 if [ -f ./etc/bodhibuilder.conf -a -f ./usr/bin/bodhibuilder ] ; then
   continue=1
 else
@@ -31,9 +34,29 @@ if [ "$continue" = 0 ] ; then
   exit 0
 fi
 
+# should have matching uid and gid, if not, issue a warning:
+bbuserid=`ls -n ./usr/bin/bodhibuilder | awk '{print $3}'`
+bbgroupid=`ls -n ./usr/bin/bodhibuilder | awk '{print $4}'`
+
+bcuserid=`ls -n ./etc/bodhibuilder.conf | awk '{print $3}'`
+bcgroupid=`ls -n ./etc/bodhibuilder.conf | awk '{print $4}'`
+
+if [ "${bbuserid}" != "${bbgroupid}" ] ; then
+  echo " User and Group ID's don't match for file:"
+  echo "    ./usr/bin/bodhibuilder"
+  echo -n " <cr> to continue  or  <ctrl+C> to cancel."
+  read redy
+fi
+if [ "${bcuserid}" != "${bcgroupid}" ] ; then
+  echo " User and Group ID's don't match for file:"
+  echo "    ./etc/bodhibuilder.conf"
+  echo -n " <cr> to continue  or  <ctrl+C> to cancel."
+  read redy
+fi
+
 # Check for needed commands
 echo " Checking for needed commands:"
-commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid"
+commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid xorriso"
 for c in $commands ; do
   cmdcheck1="`which ${c}`"
   echo -n "   ${c}"
@@ -41,35 +64,13 @@ for c in $commands ; do
     cmdcheck2="`dpkg-query -W -f='${Status}\n' ${c}`"
     if [ ! "$cmdcheck2" = "install ok installed" ] ; then
       echo " -- Missing package."
-      echo " -- Install package containing $c"
+      echo " -- Install package containing --> $c"
       echo " -- Exiting."
       exit 0
     fi
   fi
 done
 echo ""
-## Not used:
-#~ # memtest86+
-#~ cmdcheck="memtest86+"
-#~ if [ ! "`dpkg -S $(which ${cmdcheck})`" = "install ok installed" ] ; then
-  #~ echo " Package $cmdcheck not installed. Exiting."
-  #~ exit 0
-#~ fi
-#~ # coreutils
-#~ if [ ! "`dpkg-query -W -f='${Status}\n' coreutils`" = "install ok installed" ] ; then
-  #~ echo " Package coreutils not installed. Exiting."
-  #~ exit 0
-#~ fi
-#~ # dialog
-#~ if [ ! "`dpkg-query -W -f='${Status}\n' dialog`" = "install ok installed" ] ; then
-  #~ echo " Package dialog not installed. Exiting."
-  #~ exit 0
-#~ fi
-#~ # mkisofs
-#~ if [ ! "`dpkg-query -W -f='${Status}\n' mkisofs`" = "install ok installed" ] ; then
-  #~ echo " Package mkisofs not installed. Exiting."
-  #~ exit 0
-#~ fi
 
 
 ###
