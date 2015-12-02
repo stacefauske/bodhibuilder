@@ -100,11 +100,13 @@ else
   cp -pi ./etc/bodhibuilder.conf /etc/
 fi
 
+rm -r /etc/bodhibuilder/
 cp -rp ./etc/bodhibuilder /etc/
 cp -p ./etc/init.d/bodhibuilder-firstboot /etc/init.d/bodhibuilder-firstboot
 
 # /usr/ files:
 cp -p ./usr/bin/* /usr/bin/
+rm -r /usr/share/bodhibuilder-gtk/
 cp -rp ./usr/share/bodhibuilder-gtk/ /usr/share/
 
 # docs
