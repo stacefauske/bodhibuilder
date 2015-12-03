@@ -121,6 +121,13 @@ if [ -f ${WORKDIR}/bodhibuilder.log ] ; then
     rm -f ${WORKDIR}/bodhibuilder.log &> /dev/null
 fi
 touch ${WORKDIR}/bodhibuilder.log
+cat > ${WORKDIR}/bodhibuilder.log <<FOO
+
+     ===============================
+     ==  bodhibuilder  log  file  ==
+     ===============================
+
+FOO
 
 
 #added log_msg to reduce size. code provided by Ivailo (a.k.a. SmiL3y) 
@@ -379,6 +386,8 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     
     # new exclusions
     ALLEXCLUDES=
+    VAREXCLUDES=
+    ETCEXCLUDES=
     if [ "${EXCLUDES}" ] ; then
       echo "EXCLUDES variable is not empty" >> ${WORKDIR}/bodhibuilder.log
       for add in ${EXCLUDES} ; do # all exclusions
@@ -389,6 +398,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       echo "ALLEXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
       echo "${ALLEXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
       
+      # exclusions for /var/
       VAREXCLUDES=
       for addvar in ${EXCLUDES} ; do # exclusions in the var dir
         addvaryes=`echo ${addvar} | grep '/var/'`
@@ -396,11 +406,15 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
           VAREXCLUDES="${VAREXCLUDES} --exclude='${addvaryes}' "
         fi
       done
-      # echo some stuff to the log
       echo "" >> ${WORKDIR}/bodhibuilder.log
       echo "Unedited VAREXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
       echo "${VAREXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
+      VAREXCLUDES=`echo ${VAREXCLUDES} | sed 's/\/var\//\//g'` # Cleanup path for var exclusions for rsync
+      echo "" >> ${WORKDIR}/bodhibuilder.log
+      echo "Edited VAREXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
+      echo "${VAREXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
       
+      # exclusions for /etc/
       ETCEXCLUDES=
       for addetc in ${EXCLUDES} ; do # exclusions in the etc dir
         addetcyes=`echo ${addetc} | grep '/etc/'`
@@ -408,23 +422,14 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
           ETCEXCLUDES="${ETCEXCLUDES} --exclude='${addetcyes}' "
         fi
       done
-      # echo some stuff to the log
       echo "" >> ${WORKDIR}/bodhibuilder.log
       echo "Unedited ETCEXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
       echo "${ETCEXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
-      
-      # Cleanup paths for var & etc exclusions for rsync
-      VAREXCLUDES=`echo ${VAREXCLUDES} | sed 's/\/var\//\//g'`
-      ETCEXCLUDES=`echo ${ETCEXCLUDES} | sed 's/\/etc\//\//g'`
+      ETCEXCLUDES=`echo ${ETCEXCLUDES} | sed 's/\/etc\//\//g'` # Cleanup path for etc exclusions for rsync
+      echo "" >> ${WORKDIR}/bodhibuilder.log
+      echo "Edited ETCEXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
+      echo "${ETCEXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
     fi
-    
-    # echo some stuff to the log
-    echo "" >> ${WORKDIR}/bodhibuilder.log
-    echo "Edited VAREXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
-    echo "${VAREXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
-    echo "" >> ${WORKDIR}/bodhibuilder.log
-    echo "Edited ETCEXCLUDES IS:" >> ${WORKDIR}/bodhibuilder.log
-    echo "${ETCEXCLUDES}" >> ${WORKDIR}/bodhibuilder.log
     
     # rsync /etc/ & /var/ dirs
     varsync="rsync -a --exclude='*.log.*' --exclude='*.pid' --exclude='*.bak' --exclude='*.[0-9].gz' --exclude='*.deb' --exclude='kdecache*' --exclude='*~' ${VAREXCLUDES} /var/. ${WORKDIR}/dummysys/var/."
@@ -834,21 +839,34 @@ FOO
             REALFOLDERS="${REALFOLDERS} /$d"
         done
       ;;
-      * )
+      dist )
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc | grep -v home`; do
             REALFOLDERS="${REALFOLDERS} /$d"
         done
 
-        # Exclude unwanted icons and locales
-        EXCLUDEICONS=
-        if [ -d /usr/share/icons/AwOken-Bodhi ] ; then
-            log_msg "Purging icon sets"
-            EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -type d ! -name 'AwOken-Bodhi' -exec echo -n {} +`
+        # Exclude unwanted icons
+        if [ -d "${DISTICONS}" ] ; then
+          log_msg "Purging icon sets"
+          ICONSET=`echo "${DISTICONS}" | rev | cut -d/ -f1 | rev`
+          #~ EXCLUDEICONSCMD="find /usr/share/icons/* -maxdepth 0 -type d ! -name \"${ICONSET}\" -exec echo -n {} +" # t/s
+          EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -type d ! -name "${ICONSET}" -exec echo -n {} +`
+          echo "DISTICONS is  ${DISTICONS}" >>${WORKDIR}/bodhibuilder.log
+          echo "ICONSET is  ${ICONSET}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "EXCLUDEICONSCMD is:  ${EXCLUDEICONSCMD}" >>${WORKDIR}/bodhibuilder.log # t/s
+          echo "EXCLUDEICONS is:" >>${WORKDIR}/bodhibuilder.log
+          echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
         fi
-        EXCLUDELOCALES=
-        if [ -d /usr/share/locale/en ] ; then
-            log_msg "Purging locales"
-            EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d ! -name 'en*' -exec echo -n {} +`
+        # Exclude unwanted locales
+        if [ -d "$DISTLOCALE" ] ; then
+          log_msg "Purging locales"
+          LOCALESET=`echo "${DISTLOCALE}" | rev | cut -d/ -f1 | rev`
+          #~ EXCLUDELOCALESCMD="find /usr/share/locale/* -maxdepth 0 -type d ! -name \"${LOCALESET}*\" -exec echo -n {} +" # t/s
+          EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d ! -name "${LOCALESET}*" -exec echo -n {} +`
+          echo "DISTLOCALE is  ${DISTLOCALE}" >>${WORKDIR}/bodhibuilder.log
+          echo "LOCALESET is  ${LOCALESET}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "EXCLUDELOCALESCMD is:  ${EXCLUDELOCALESCMD}" >>${WORKDIR}/bodhibuilder.log # t/s
+          echo "EXCLUDELOCALES is:" >>${WORKDIR}/bodhibuilder.log
+          echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
         fi
       ;;
     esac
