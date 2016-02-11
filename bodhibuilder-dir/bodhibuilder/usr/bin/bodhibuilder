@@ -150,6 +150,10 @@ echo "LIVECDURL:  ${LIVECDURL}" >>${WORKDIR}/bodhibuilder.log
 echo " bodhibuilder.version variables received:" >>${WORKDIR}/bodhibuilder.log
 echo "BODHIBUILDERVERSION:  ${BODHIBUILDERVERSION}" >>${WORKDIR}/bodhibuilder.log
 
+# echo files/dirs in /etc/bodhibuilder to the log file
+echo " Files & Dirs in location /etc/bodhibuilder:" >>${WORKDIR}/bodhibuilder.log
+ls -l /etc/bodhibuilder/ >>${WORKDIR}/bodhibuilder.log
+
 
 if [ ! "${LIVEUSER}" ] ; then
     #Somebody must have removed the username from the configuration file
@@ -218,7 +222,7 @@ fi
 
 
 
-
+# What type of remaster is it?
 case $1  in
     backup|-b )
         log_msg "System Backup Mode Selected"
@@ -301,6 +305,7 @@ esac
 
 FOO
 fi
+
 
 
 
