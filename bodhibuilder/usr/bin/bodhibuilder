@@ -139,14 +139,16 @@ log_msg() {
 
 # echo bodhibuilder .conf & .version vars to log
 echo " bodhibuilder.conf variables received:" >>${WORKDIR}/bodhibuilder.log
-echo "WORKDIR:  ${WORKDIR}" >>${WORKDIR}/bodhibuilder.log
-echo "EXCLUDES:  ${EXCLUDES}" >>${WORKDIR}/bodhibuilder.log
-echo "LIVEUSER:  ${LIVEUSER}" >>${WORKDIR}/bodhibuilder.log
-echo "LIVECDLABEL:  ${LIVECDLABEL}" >>${WORKDIR}/bodhibuilder.log
-echo "CUSTOMISO:  ${CUSTOMISO}" >>${WORKDIR}/bodhibuilder.log
-echo "SQUASHFSOPTS:  ${SQUASHFSOPTS}" >>${WORKDIR}/bodhibuilder.log
-echo "BACKUPSHOWINSTALL:  ${BACKUPSHOWINSTALL}" >>${WORKDIR}/bodhibuilder.log
-echo "LIVECDURL:  ${LIVECDURL}" >>${WORKDIR}/bodhibuilder.log
+cat /etc/bodhibuilder.conf | grep -e '^[A-Z].*=".*"' >>${WORKDIR}/bodhibuilder.log
+#~ CONFVARS=`cat /etc/bodhibuilder.conf | grep -e '^[A-Z].*=".*"' | sed -e 's/=".*"//' >>${WORKDIR}/bodhibuilder.log
+#~ echo "WORKDIR:  ${WORKDIR}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "EXCLUDES:  ${EXCLUDES}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "LIVEUSER:  ${LIVEUSER}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "LIVECDLABEL:  ${LIVECDLABEL}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "CUSTOMISO:  ${CUSTOMISO}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "SQUASHFSOPTS:  ${SQUASHFSOPTS}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "BACKUPSHOWINSTALL:  ${BACKUPSHOWINSTALL}" >>${WORKDIR}/bodhibuilder.log
+#~ echo "LIVECDURL:  ${LIVECDURL}" >>${WORKDIR}/bodhibuilder.log
 echo " bodhibuilder.version variables received:" >>${WORKDIR}/bodhibuilder.log
 echo "BODHIBUILDERVERSION:  ${BODHIBUILDERVERSION}" >>${WORKDIR}/bodhibuilder.log
 
@@ -453,10 +455,22 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
 
     #Custom grub config
     if [ -e /etc/bodhibuilder/grub/grub.bodhi ] ; then
-      log_msg "Found custom grub for ${LIVECDLABEL}"
-      cp -rf /etc/bodhibuilder/grub/backgrounds/ ${WORKDIR}/dummysys/etc/grub.d/
+      #~ log_msg "Found custom grub for ${LIVECDLABEL}"
+      log_msg "Found custom grub for ${DISTNAME}"
       cp -f /etc/bodhibuilder/grub/grub.bodhi ${WORKDIR}/dummysys/etc/default/grub
-      sed -i "s/LIVECDLABEL/${LIVECDLABEL}/g" ${WORKDIR}/dummysys/etc/default/grub
+      if [ -d /etc/bodhibuilder/grub/backgrounds ] ; then
+        cp -rf /etc/bodhibuilder/grub/backgrounds/ ${WORKDIR}/dummysys/etc/grub.d/
+      fi
+      #~ sed -i "s/LIVECDLABEL/${LIVECDLABEL}/g" ${WORKDIR}/dummysys/etc/default/grub
+    fi
+    
+    if [ "${DISTNAME}" ] ; then
+      if [ -e "${WORKDIR}/dummysys/etc/lsb-release" ] ; then
+        sed -i "s/^DISTRIB_ID=.*$/DISTRIB_ID=${DISTNAME}/" ${WORKDIR}/dummysys/etc/lsb-release
+        sed -i 's/^GRUB_DISTRIBUTOR=.*$/GRUB_DISTRIBUTOR=\`lsb_release -d -s 2> \/dev\/null || echo Debian\`/' ${WORKDIR}/dummysys/etc/default/grub
+      else
+        sed -i 's/^GRUB_DISTRIBUTOR=.*$/GRUB_DISTRIBUTOR=bodhibuilder/' ${WORKDIR}/dummysys/etc/default/grub
+      fi
     fi
 
 
@@ -762,7 +776,7 @@ FOO
             fi
         fi
 
-    fi
+    fi # end $OPT1 = backup
 
 
     log_msg "Creating the casper.conf file."
@@ -828,6 +842,7 @@ FOO
     # 64bit needs vmlinuz.efi
     if [ "$ARCH" = "amd64" ] ; then
         log_msg "Creating casper/vmlinuz.efi"
+        # simply renaming it to vmlinuz.efi hasn't hurt anything so far:
         cp /boot/vmlinuz-`uname -r` $WORKDIR/ISOTMP/casper/vmlinuz.efi
     else
         log_msg "Creating casper/vmlinuz"
@@ -891,18 +906,23 @@ FOO
 
     REALFOLDERS=""
 
+    # add folders to mksquashfs
     for d in `ls -d ${WORKDIR}/dummysys/*`; do
         REALFOLDERS="${REALFOLDERS} ${d}"
     done
 
 
+    # set some folders to add or exclude from mksquashfs
     case ${OPT1} in
       backup )
+        # add folders to mksquashfs
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc`; do
             REALFOLDERS="${REALFOLDERS} /$d"
         done
       ;;
+      
       dist )
+        # add folders to mksquashfs
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc | grep -v home`; do
             REALFOLDERS="${REALFOLDERS} /$d"
         done
@@ -911,23 +931,21 @@ FOO
         if [ -d "${DISTICONS}" ] ; then
           log_msg "Purging icon sets"
           ICONSET=`echo "${DISTICONS}" | rev | cut -d/ -f1 | rev`
-          #~ EXCLUDEICONSCMD="find /usr/share/icons/* -maxdepth 0 -type d ! -name \"${ICONSET}\" -exec echo -n {} +" # t/s
           EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -type d ! -name "${ICONSET}" -exec echo -n {} +`
           echo "DISTICONS is  ${DISTICONS}" >>${WORKDIR}/bodhibuilder.log
           echo "ICONSET is  ${ICONSET}" >>${WORKDIR}/bodhibuilder.log
-          #~ echo "EXCLUDEICONSCMD is:  ${EXCLUDEICONSCMD}" >>${WORKDIR}/bodhibuilder.log # t/s
           echo "EXCLUDEICONS is:" >>${WORKDIR}/bodhibuilder.log
           echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
         fi
+
+
         # Exclude unwanted locales
         if [ -d "$DISTLOCALE" ] ; then
           log_msg "Purging locales"
           LOCALESET=`echo "${DISTLOCALE}" | rev | cut -d/ -f1 | rev`
-          #~ EXCLUDELOCALESCMD="find /usr/share/locale/* -maxdepth 0 -type d ! -name \"${LOCALESET}*\" -exec echo -n {} +" # t/s
           EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d ! -name "${LOCALESET}*" -exec echo -n {} +`
           echo "DISTLOCALE is  ${DISTLOCALE}" >>${WORKDIR}/bodhibuilder.log
           echo "LOCALESET is  ${LOCALESET}" >>${WORKDIR}/bodhibuilder.log
-          #~ echo "EXCLUDELOCALESCMD is:  ${EXCLUDELOCALESCMD}" >>${WORKDIR}/bodhibuilder.log # t/s
           echo "EXCLUDELOCALES is:" >>${WORKDIR}/bodhibuilder.log
           echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
         fi
@@ -935,6 +953,7 @@ FOO
     esac
 
 
+    # set the mksquashfs command
     case ${OPT1} in
       backup )
         squashcmd="mksquashfs ${REALFOLDERS} ${WORKDIR}/ISOTMP/casper/filesystem.squashfs ${SQUASHFSOPTS} -e root/.local/Trash root/.thumbnails root/.cache root/.bash_history root/.lesshst root/.nano_history boot/grub ${BASEWORKDIR} ${EXCLUDES} 2>>${WORKDIR}/bodhibuilder.log"
@@ -945,9 +964,12 @@ FOO
     esac
     echo "mksquashfs command:" >>${WORKDIR}/bodhibuilder.log
     echo " > ${squashcmd}"  >>${WORKDIR}/bodhibuilder.log
+    # make the squashfs
     eval ${squashcmd}
 
+
     sleep 1
+
 
     #add some stuff the log in case of problems so I can troubleshoot it easier
     echo "Updating the bodhibuilder.log"
@@ -1013,7 +1035,9 @@ FOO
 
     #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
     ## Not worried about the squashfs size because xorriso doesn't care what size the iso will be
-    ## Although I do have to see if genisoimage or mksquashfs care about it and IF it accordingly <-sef>
+    ## Although I do have to see if genisoimage or mkisofs care about it and IF it accordingly 
+    ##   Actually, now I'm just going to do this later in the script, conditional on if genisoimage or mkisofs
+    ##   are being used instead of xorriso. <-sef>
     #~ SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
     #~ if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
         #~ log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
@@ -1073,25 +1097,37 @@ iso (){
     fi
 
     #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
-    ## Not worried about the squashfs size because xorriso doesn't care what size the iso will be
-    ## Although I do have to see if genisoimage or mksquashfs care about it and IF it accordingly <-sef>
-    #~ SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
-    #~ if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
-        #~ log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
-        #~ exit 1
-    #~ fi
+    ## Not worried about the squashfs size for xorriso because it doesn't care what size the iso will be
+    ## Although if genisoimage or mkisofs are being used they do care about the iso size <-sef>
+    case ${CREATEISO} in
+      *genisoimage|*mkisofs )
+        SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
+        if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
+            log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
+            exit 1
+        fi
+      ;;
+    esac
 
 
     #Step 6.5 - Make ISO compatible with UEFI Grub Boot. This needs to be here or else UEFI boot won't work.
     log_msg "Making disk compatible with UEFI Grub Boot."
-    . /etc/lsb-release
+    
+    #~ . /etc/lsb-release
+    # ^^ (test) changed above line to this so as to keep the custom DISTRIB_ID:
+    . ${WORKDIR}/dummysys/etc/lsb-release
+    
     touch ${WORKDIR}/ISOTMP/ubuntu
+    # ^^ (test) look into changing above line to this:
+    #~ touch ${WORKDIR}/ISOTMP/bodhi
+    
     touch ${WORKDIR}/ISOTMP/.disk/base_installable
     echo "full_cd/single" > ${WORKDIR}/ISOTMP/.disk/cd_type
     # starting with 12.04 need to have correct ubuntu version or startup disk creator uses syslinux-legacy which won't work
     DISKINFONAME=`echo ${LIVECDLABEL} | awk '{print $1}'`
     echo $DISKINFONAME $DISTRIB_RELEASE - Release ${ARCH} > ${WORKDIR}/ISOTMP/.disk/info
     echo ${LIVECDURL} > ${WORKDIR}/ISOTMP/.disk/release_notes_url
+
 
 
     # Step 7 - Make md5sum.txt for the files on the livecd - this is used during the
@@ -1123,12 +1159,30 @@ iso (){
       log_msg "   Using '${ISOCMD}' @ '${CREATEISO}' to create the ISO."
     fi
 
+
+    # set ISO creation command based on architecture
+    # and then create the ISO
     isopass=0
     until [ "$isopass" -eq 1 ] ; do
+
+      #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
+      ## Not worried about the squashfs size for xorriso because it doesn't care what size the iso will be
+      ## Although if genisoimage or mkisofs are being used they do care about the iso size <-sef>
+      case ${CREATEISO} in
+        *genisoimage|*mkisofs )
+          SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
+          if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
+              log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
+              exit 1
+          fi
+        ;;
+      esac
+
       # do xorriso, genisoimage, or mkisofs depending on which will work best:
       case ${CREATEISO} in
         *xorriso* ) # Possibly create ISO using /usr/bin/xorriso - must be 64-bit OS
-            case ${ARCH} in # check the architecture
+            # check the architecture
+            case ${ARCH} in
               amd64 ) # If 64-bit, keep using xorriso
                 log_msg "Using ${ISOCMD} to create the ISO."
                   
@@ -1156,36 +1210,52 @@ iso (){
                   
                 isopass=1
               ;;
+              
               * ) # if not 64-bit, use something else besides xorriso
                 log_msg "xorriso only supported in 64-bit OS, attempting to use another program to create the ISO."
                 CREATEISO="`which genisoimage`"
+                ISOCMD="genisoimage"
                 if [ "${CREATEISO}" = "" ] ; then
                   CREATEISO="`which mkisofs`"
+                  ISOCMD="mkisofs"
                 fi
               ;;
-            esac
-        ;;
-        *genisoimage ) # Create ISO using /usr/bin/genisoimage
-          log_msg "Using genisoimage to create ISO."
+            esac # end arch check
+        ;; # end xorriso case select
+        
+        *genisoimage|*mkisofs ) # Create ISO using /usr/bin/genisoimage
+        
+          #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file" 
+          ## Not worried about the squashfs size for xorriso because it doesn't care what size the iso will be
+          ## Although if genisoimage or mkisofs are being used they do care about the iso size <-sef>
+          SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
+          if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
+              log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
+              exit 1
+          fi
+          
+          # log message
+          if [ "${ISOCMD}" = "genisoimage" ] ; then
+            log_msg "Using genisoimage to create ISO."
+          elif [ "${ISOCMD}" = "mkisofs" ] ; then
+            log_msg "Using mkisofs to create ISO."
+          fi
+          
+          # check architecture
           if [ ! "${ARCH}" = "amd64" ] ; then
             log_msg "This ISO may not be UEFI bootable. At this time, only supported in 64-bit OS."
           fi
+          
+          # create the ISO
           ${CREATEISO} -iso-level 3 -quiet -r -V "${LIVECDLABEL}" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
           isopass=1
-        ;;
-        *mkisofs ) # Create ISO using /usr/bin/mkisofs
-          log_msg "Using mkisofs to create ISO."
-          if [ ! "${ARCH}" = "amd64" ] ; then
-            log_msg "This ISO may not be UEFI bootable. At this time, only supported in 64-bit OS."
-          fi
-          ${CREATEISO} -iso-level 3 -quiet -r -V "${LIVECDLABEL}" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
-          isopass=1
-        ;;
-        * )
+        ;; # end genisoimage|mkisofs case select
+        
+        * ) # none of the three ISO creation programs are found on OS
           log_msg "ERROR: xorriso, genisoimage, or mkisofs programs not found."
           isopass=1
         ;;
-      esac
+      esac # end CREATEISO check
     done
     
     if [ ! -f ${WORKDIR}/${CUSTOMISO} ] ; then
