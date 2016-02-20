@@ -467,7 +467,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     if [ "${DISTNAME}" ] ; then
       if [ -e "${WORKDIR}/dummysys/etc/lsb-release" ] ; then
         sed -i "s/^DISTRIB_ID=.*$/DISTRIB_ID=${DISTNAME}/" ${WORKDIR}/dummysys/etc/lsb-release
-        sed -i 's/^GRUB_DISTRIBUTOR=.*$/GRUB_DISTRIBUTOR=\`lsb_release -d -s 2> \/dev\/null || echo Debian\`/' ${WORKDIR}/dummysys/etc/default/grub
+        sed -i 's/^GRUB_DISTRIBUTOR=.*$/GRUB_DISTRIBUTOR=\`lsb_release -i -s 2> \/dev\/null || echo Debian\`/' ${WORKDIR}/dummysys/etc/default/grub
       else
         sed -i 's/^GRUB_DISTRIBUTOR=.*$/GRUB_DISTRIBUTOR=bodhibuilder/' ${WORKDIR}/dummysys/etc/default/grub
       fi
@@ -927,26 +927,62 @@ FOO
             REALFOLDERS="${REALFOLDERS} /$d"
         done
 
-        # Exclude unwanted icons
-        if [ -d "${DISTICONS}" ] ; then
-          log_msg "Purging icon sets"
-          ICONSET=`echo "${DISTICONS}" | rev | cut -d/ -f1 | rev`
-          EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -type d ! -name "${ICONSET}" -exec echo -n {} +`
-          echo "DISTICONS is  ${DISTICONS}" >>${WORKDIR}/bodhibuilder.log
-          echo "ICONSET is  ${ICONSET}" >>${WORKDIR}/bodhibuilder.log
-          echo "EXCLUDEICONS is:" >>${WORKDIR}/bodhibuilder.log
+        # Exclude unwanted icons - single choice
+        #~ if [ -d "${DISTICONS}" ] ; then
+          #~ log_msg "Purging icon sets"
+          #~ ICONSET=`echo "${DISTICONS}" | rev | cut -d/ -f1 | rev`
+          #~ EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -type d ! -name "${ICONSET}" -exec echo -n {} +`
+          #~ echo "DISTICONS is  ${DISTICONS}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "ICONSET is  ${ICONSET}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "EXCLUDEICONS is:" >>${WORKDIR}/bodhibuilder.log
+          #~ echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
+        #~ fi
+        
+        # Include only wanted icons & icon sets - multiple choices
+        if [ "${DISTICONS}" ] ; then
+          log_msg "Purging unwanted icon sets"
+          #~ EXCLUDEICONS=`ls -db /usr/share/icons/*`
+          EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -exec echo -n {} +` # all files in /usr/share/icons/
+          echo "EXCLUDEICONS started as:" >>${WORKDIR}/bodhibuilder.log
+          echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
+          for i in ${DISTICONS} ; do
+            if [ -e "/usr/share/icons/${i}" ] ; then
+              echo "Removing ${i} from EXCLUDEICONS" >>${WORKDIR}/bodhibuilder.log
+              EXCLUDEICONS=`echo ${EXCLUDEICONS} | sed -e "s/ \/usr\/share\/icons\/${i} / /"`
+            fi
+          done
+          # EXCLUDEICONS is now all files in /usr/share/icons/ except those from DISTICONS
+          echo "EXCLUDEICONS is now:" >>${WORKDIR}/bodhibuilder.log
           echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
         fi
 
 
-        # Exclude unwanted locales
-        if [ -d "$DISTLOCALE" ] ; then
-          log_msg "Purging locales"
-          LOCALESET=`echo "${DISTLOCALE}" | rev | cut -d/ -f1 | rev`
-          EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d ! -name "${LOCALESET}*" -exec echo -n {} +`
-          echo "DISTLOCALE is  ${DISTLOCALE}" >>${WORKDIR}/bodhibuilder.log
-          echo "LOCALESET is  ${LOCALESET}" >>${WORKDIR}/bodhibuilder.log
-          echo "EXCLUDELOCALES is:" >>${WORKDIR}/bodhibuilder.log
+        # Exclude unwanted locales - single choice
+        #~ if [ -d "$DISTLOCALE" ] ; then
+          #~ log_msg "Purging locales"
+          #~ LOCALESET=`echo "${DISTLOCALE}" | rev | cut -d/ -f1 | rev`
+          #~ EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d ! -name "${LOCALESET}*" -exec echo -n {} +`
+          #~ echo "DISTLOCALE is  ${DISTLOCALE}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "LOCALESET is  ${LOCALESET}" >>${WORKDIR}/bodhibuilder.log
+          #~ echo "EXCLUDELOCALES is:" >>${WORKDIR}/bodhibuilder.log
+          #~ echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
+        #~ fi
+        
+        # Include only wanted locales - multiple choices
+        if [ "${DISTLOCALE}" ] ; then
+          log_msg "Purging unwanted locales"
+          #~ EXCLUDELOCALES=`ls -db /usr/share/locale/*` # does not list directories only
+          EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d -exec echo -n {} +` # lists all directories in /usr/share/locale/
+          echo "EXCLUDELOCALES started as:" >>${WORKDIR}/bodhibuilder.log
+          echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
+          for i in ${DISTLOCALE} ; do
+            if [ -d "/usr/share/locale/${i}" ] ; then
+              echo "Removing ${i} from EXCLUDELOCALES" >>${WORKDIR}/bodhibuilder.log
+              EXCLUDELOCALES=`echo ${EXCLUDELOCALES} | sed -e "s/ \/usr\/share\/locale\/${i} / /"`
+            fi
+          done
+          # EXCLUDELOCALES is now all files in /usr/share/locale/ except those from DISTLOCALE
+          echo "EXCLUDELOCALES is now:" >>${WORKDIR}/bodhibuilder.log
           echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
         fi
       ;;
