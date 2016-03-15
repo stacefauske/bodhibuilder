@@ -55,8 +55,8 @@ if [ "${bcuserid}" != "${bcgroupid}" ] ; then
 fi
 
 # Check for needed commands
-echo " Checking for needed commands:"
-commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid xorriso"
+echo " Checking for dependencies and required commands:"
+commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid xorriso dpkg-dev"
 for c in $commands ; do
   cmdcheck1="`which ${c}`"
   echo -n "   ${c}"
