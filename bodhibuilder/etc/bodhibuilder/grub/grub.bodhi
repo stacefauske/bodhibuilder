@@ -2,6 +2,8 @@
 # /boot/grub/grub.cfg.
 # For full documentation of the options in this file, see:
 #   info -f grub -n 'Simple configuration'
+#
+# bodhibuilder grub file
 
 GRUB_DEFAULT=0
 #GRUB_HIDDEN_TIMEOUT=0

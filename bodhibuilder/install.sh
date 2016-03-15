@@ -152,6 +152,9 @@ cp -p ./usr/share/man/man1/* /usr/share/man/man1/
 # pixmaps
 cp -p ./usr/share/pixmaps/bodhibuilder-gtk.png /usr/share/pixmaps/
 
+# create link bb to bodhibuilder
+ln -sf /usr/bin/bodhibuilder /usr/bin/bb
+
 echo " INSTALLED"
 echo ""
 echo " Edit the file '/etc/bodhibuilder.conf' to customize."
