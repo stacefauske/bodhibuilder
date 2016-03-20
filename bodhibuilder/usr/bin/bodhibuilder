@@ -140,8 +140,8 @@ log_msg() {
 
 # TODO - Create function to execute cmd, then log output
 #~ log_do() {
-  #~ echo "$@" >>${WORKDIR}/bodhibuilder.log
-  #~ eval $@
+  #~ echo "$1" >>${WORKDIR}/bodhibuilder.log
+  #~ eval "$1" | tee -a ${WORKDIR}/bodhibuilder.log
 #~ }
 
 
@@ -197,6 +197,7 @@ fi
 
 
 # put custom repositories into firstboot file so they will be entered into sources.list
+#   firstboot file = /etc/bodhibuilder/firstboot/file-firstboot
 ### INWORK ###
 #~ if [ "${SYSREPOS}" ] ; then
   #~ repochk=1
@@ -608,19 +609,49 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
 
     #check if system has UEFI data to move over
     if [ -d /etc/bodhibuilder/uefi ] ; then
-      inetstatus=`wget -q --tries=10 --timeout=20 --spider http://ubuntu.com; echo $?`
-      if [ "$inetstatus" -eq 0 ] ; then
+      log_msg "Checking internet connection..."
+      netconnstatus=`dig | grep -o 'Got answer'` # report if ANY network hardware is connected
+      if [ "${netconnstatus}" ] ; then
+        #~ inetstatus=`wget -q --tries=10 --timeout=20 --spider http://ubuntu.com; echo $?`
+        inetstatus=`wget -q --timeout=20 --spider www.ubuntu.com; echo $?`
+        if [ "${inetstatus}" -ne 0 ] ; then # if above failed, do a double-check with google
+          log_msg "   Could not connect to www.ubuntu.com"
+          inetstatus=`wget -q --timeout=20 --spider www.google.com; echo $?`
+          if [ "${inetstatus}" -ne 0 ] ; then # if above failed, do a triple-check with cisco
+          log_msg "   Could not connect to www.google.com"
+            inetstatus=`wget -q --timeout=20 --spider www.cisco.com; echo $?`
+            if [ "${inetstatus}" -ne 0 ] ; then # Internet connectivity fail
+             log_msg "   Could not connect to www.cisco.com"
+            fi
+          fi
+        fi
+      else # no hardware is connected
+        inetstatus=1 # set to 1 to skip downloading of deb packages
+      fi
+      if [ "${inetstatus}" -eq 0 ] ; then # internet connection detected
         log_msg "connection to internet detected"
         # make sure apt-get cache is updated, or it might try to download the wrong version
         apt-get update >>${WORKDIR}/bodhibuilder.log
         
         # packages to be downloaded and moved into pool: -- ONE directory
-        dlpkg_1="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db shim shim-signed"
-        dlpkg_2="b43-fwcutter bcmwl-kernel-source"
-        dlpkg_3="dkms fakeroot grub-pc libfakeroot libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras lupin-support mouseemu oem-config oem-config-gtk oem-config-slideshow-ubuntu setserial user-setup wvdial"
-        dlpkg_all="${dlpkg_1} ${dlpkg_2} ${dlpkg_3}" # All packages combined
+        #~ dlpkg_1="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db shim shim-signed"
+        #~ dlpkg_2="b43-fwcutter bcmwl-kernel-source"
+        #~ dlpkg_3="dkms fakeroot grub-pc libfakeroot libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras lupin-support mouseemu oem-config oem-config-gtk oem-config-slideshow-ubuntu setserial user-setup wvdial"
+        #~ dlpkg_all="${dlpkg_1} ${dlpkg_2} ${dlpkg_3}" # All packages combined
         
-        log_msg "  downloading latest deb files for these packages:"
+        # packages to be downloaded and moved into pool: -- 32/64-bit -- ONE directory
+        dlpkg_32="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db b43-fwcutter bcmwl-kernel-source dkms fakeroot grub-pc libfakeroot libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras lupin-support mouseemu oem-config oem-config-gtk oem-config-slideshow-ubuntu setserial user-setup wvdial" # 32-bit packages
+        dlpkg_64="grub-efi-amd64-signed shim shim-signed" # 64-bit packages
+        case ${ARCH} in
+          amd64 )
+            dlpkg_all="${dlpkg_32} ${dlpkg_64}"
+          ;;
+          * )
+            dlpkg_all="${dlpkg_32}"
+          ;;
+        esac
+        
+        log_msg "  downloading latest deb files for ${ARCH} packages:"
         log_msg "${dlpkg_all}"
         cd ${WORKDIR}
         mkdir dlpkgtempdir
@@ -634,30 +665,38 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         for dlpkgchk in ${dlpkg_all} ; do
           if [ ! -e ./${dlpkgchk}_* ] ; then
             dlpkgpass="0"
-            log_msg "file ${dlpkgchk}_(Some.New.Rev.Num) does not exist, no deb files being copied into pool so as to maintain compatibility"
+            log_msg "file ${dlpkgchk}_(Some.New.Rev.Num)  -  does NOT exist."
           else
             dlpkgchkname=`ls -b ./${dlpkgchk}_*`
             log_msg "file ${dlpkgchkname} exists"
           fi
         done
+        
+        if [ "${dlpkgpass}" = "0" ] ; then # Didn't get all files downloaded
+          cd -
+          rm -rf ./dlpkgtempdir
+        fi
 
 
-      else
+      else # no internet connection detected
         log_msg "no connection to internet detected"
         log_msg "...not downloading latest uefi pool debs"
+        dlpkgpass="0"
       fi
       log_msg "Moving all EFI files to the ISOTMP folder"
       cp -a /etc/bodhibuilder/uefi/* ${WORKDIR}/ISOTMP/
       
       # move deb files section if all have successfully downloaded: -- ONE directory
-      if [ "${dlpkgpass}" == "1" ] ; then
+      if [ "${dlpkgpass}" == "1" ] ; then # successful downloads
         chmod 755 ./* # still in dlpkgtempdir
         log_msg "moving deb files into pool"
         rm -f ${WORKDIR}/ISOTMP/pool/*
-        mv ./* ${WORKDIR}/ISOTMP/pool/
+        mv ./* ${WORKDIR}/ISOTMP/pool/ # mv all new files into pool
+        cd -
+        rm -rf ./dlpkgtempdir
+      else # unsuccessful downloads
+        log_msg "no new deb files being copied into pool so as to maintain compatibility"
       fi
-      cd -
-      rm -rf ./dlpkgtempdir
       
     else
       log_msg "No UEFI folder found at  /etc/bodhibuilder/uefi/"
@@ -665,11 +704,13 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     fi
 
     # Creating a repository for the Ubiquity install
-    log_msg "Creating a Packages.gz repository for the Ubiquity install"
-    rm -f $WORKDIR/ISOTMP/dists/Packages.gz
-    cd $WORKDIR/ISOTMP/
-    dpkg-scanpackages pool /dev/null 2>>${WORKDIR}/bodhibuilder.log | gzip -9c > ./dists/Packages.gz
-    cd -
+    if [ "${ARCH}" = "amd64" ] ; then
+      log_msg "Creating a Packages.gz repository for the Ubiquity install"
+      rm -f $WORKDIR/ISOTMP/dists/Packages.gz
+      cd $WORKDIR/ISOTMP/
+      dpkg-scanpackages pool /dev/null 2>>${WORKDIR}/bodhibuilder.log | gzip -9c > ./dists/Packages.gz
+      cd -
+    fi
 
     #copy any preseed files
     log_msg "Copying any preseed files"
@@ -700,7 +741,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         cp ${VESAMENU} ${WORKDIR}/ISOTMP/isolinux/
         # setup isolinux for the livecd
         VERSION=`lsb_release -r | awk '{print $2}' | awk -F "." '{print $1}'`
-        sed -e 's/__LIVECDLABEL__/'"${LIVECDLABEL}"'/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu > \
+        sed -e 's/__DISTNAME__/'"${DISTNAME}"'/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu > \
         ${WORKDIR}/ISOTMP/isolinux/isolinux.cfg
         cp /etc/bodhibuilder/isolinux/splash.png ${WORKDIR}/ISOTMP/isolinux/splash.png
     else
@@ -836,9 +877,9 @@ FOO
 
     sleep 1
 
+
+    # Set the desired apt-setup commands for ubiquity
     log_msg "Setting up casper and ubiquity options for ${OPT1} mode"
-    
-    # prevent the installer from changing the apt sources.list
     
     log_msg "Tweaking apt-setup"
     
@@ -846,24 +887,16 @@ FOO
     if [ ! -f "/usr/share/ubiquity/apt-setup.0RIG" ] ; then
         cp -f /usr/share/ubiquity/apt-setup /usr/share/ubiquity/apt-setup.0RIG
     fi
-
-    ## Replacing this stuff with a file -- apt-setup.bodhi
-    #~ sed -i '/rm/d' /usr/share/ubiquity/apt-setup
-    #~ ##~ sed -i '/boot/d' /usr/share/ubiquity/apt-setup ## remove ##################################
-    #~ ##~ sed -i '/cdrom:/d' /usr/share/ubiquity/apt-setup ## remove ##################################
-    #~ echo "mkdir -p /target/boot/efi" >> /usr/share/ubiquity/apt-setup
-    #~ echo "touch /target/boot/efi/startup.nsh" >> /usr/share/ubiquity/apt-setup
-    #~ echo 'echo "fs0:\EFI\ubuntu\grubx64.efi" >> /target/boot/efi/startup.nsh' >> /usr/share/ubiquity/apt-setup
-    #~ echo "rm -f /target/etc/gdm/custom.conf" >> /usr/share/ubiquity/apt-setup
-    #~ echo "rm -f /target/etc/mdm/mdm.conf" >> /usr/share/ubiquity/apt-setup
-    #~ ##~ echo "sed -i '/cdrom:/d' /target/etc/apt/sources.list" >> /usr/share/ubiquity/apt-setup ## remove ##################################
-    #~ echo "chattr +i /etc/default/grub" >> /usr/share/ubiquity/apt-setup
-    
-    
     rm -f /usr/share/ubiquity/apt-setup &> /dev/null
     cp -f /etc/bodhibuilder/ubiquity/apt-setup.* /usr/share/ubiquity/
-    cp -f /etc/bodhibuilder/ubiquity/apt-setup.bodhi /usr/share/ubiquity/apt-setup # pre-configured apt-setup for bodhi linux - INWORK
-    #~ cp -f /etc/bodhibuilder/ubiquity/apt-setup.nothing /usr/share/ubiquity/apt-setup # pre-configured apt-setup with #do nothing (preserves sources.list)
+    case ${ARCH} in
+      amd64 )
+        cp -f /etc/bodhibuilder/ubiquity/apt-setup.bb /usr/share/ubiquity/apt-setup # pre-configured apt-setup for bodhibuilder 64-bit
+      ;;
+      * )
+        cp -f /etc/bodhibuilder/ubiquity/apt-setup.nothing /usr/share/ubiquity/apt-setup # pre-configured apt-setup with '#do nothing' for 32-bit
+      ;;
+    esac
     chmod 755 /usr/share/ubiquity/apt-setup
 
 
@@ -892,7 +925,8 @@ FOO
 
 
     ## Process to create initrd.lz from initrd.img... in casper
-    # Provisional: if /boot/initrd.img is in gzip format, some version
+    #    Provisional: DO NOT REMOVE UNLESS VERY SURE
+    # if /boot/initrd.img is in gzip format, some version
     # of this will have to be implemented
     #~ log_msg "Copying initrd.img to casper/initrd.gz"
     #~ cp /boot/initrd.img-`uname -r` ${WORKDIR}/ISOTMP/casper/initrd.gz
@@ -1078,10 +1112,11 @@ FOO
     fi
 
 
-    #remove frontend from the system so the Install menu item does not appear.
-    log_msg "Removing the ubiquity frontend as it has been included and is not needed on the normal system"
-    apt-get -y -q remove ubiquity-frontend-kde &> /dev/null
-    apt-get -y -q remove ubiquity-frontend-gtk &> /dev/null
+    ## Removed this in v2.1.0
+    #~ #remove frontend from the system so the Install menu item does not appear.
+    #~ log_msg "Removing the ubiquity frontend as it has been included and is not needed on the normal system"
+    #~ apt-get -y -q remove ubiquity-frontend-kde &> /dev/null
+    #~ apt-get -y -q remove ubiquity-frontend-gtk &> /dev/null
 
 
     sleep 1
@@ -1093,7 +1128,7 @@ FOO
     for i in `cat /tmp/size.tmp`; do a=$(($a+$i)); done
     echo $a > ${WORKDIR}/ISOTMP/casper/filesystem.size
 
-    log_msg "Removing bodhibuilder-firstboot from system startup"
+    log_msg "Removing bodhibuilder-firstboot from current system's startup"
     update-rc.d -f bodhibuilder-firstboot remove
     chmod 644 /etc/init.d/bodhibuilder-firstboot
 }
@@ -1131,7 +1166,7 @@ iso (){
     # Feedback to the log about which will be used to create the ISO
     log_msg "On first detection (this could change based on other parameters)  ---"
     log_msg "   Found '${CREATEISO}'"
-    log_msg "   Using '${ISOCMD}' to create the ISO."
+    log_msg "   Currently planning to use '${ISOCMD}' to create the ISO."
 
     # check to see if the cd filesystem exists
     if [ ! -f "${WORKDIR}/ISOTMP/casper/filesystem.squashfs" ] ; then
@@ -1168,7 +1203,7 @@ iso (){
     echo "full_cd/single" > ${WORKDIR}/ISOTMP/.disk/cd_type
     # starting with 12.04 need to have correct ubuntu version or startup disk creator uses syslinux-legacy which won't work
     DISKINFONAME=`echo ${LIVECDLABEL} | awk '{print $1}'`
-    echo $DISKINFONAME $DISTRIB_RELEASE - Release ${ARCH} > ${WORKDIR}/ISOTMP/.disk/info
+    echo ${DISKINFONAME} ${DISTRIB_RELEASE} - Release ${ARCH} > ${WORKDIR}/ISOTMP/.disk/info
     echo ${LIVECDURL} > ${WORKDIR}/ISOTMP/.disk/release_notes_url
 
 
@@ -1190,70 +1225,42 @@ iso (){
 
     # Step 8 - Make the ISO file
     log_msg "Creating ${CUSTOMISO} in ${WORKDIR}"
+
+
+
+
     # if file isohdpfx.bin doesn't exist, don't use xorriso
-    if [ ! "${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin" ] ; then
+    if [ ! -f "${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin" ] ; then
       log_msg "File '${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin' not found."
+      log_msg "Can't use xorriso."
       CREATEISO="`which genisoimage`"
       ISOCMD="genisoimage"
       if [ ! "${CREATEISO}" ] ; then
         CREATEISO="`which mkisofs`"
         ISOCMD="mkisofs"
       fi
-      log_msg "   Using '${ISOCMD}' @ '${CREATEISO}' to create the ISO."
+      case ${CREATEISO} in
+        *genisoimage|*mkisofs )
+          log_msg "   No longer using xorriso..."
+          log_msg "   Now using '${ISOCMD}' @ '${CREATEISO}' to create the ISO."
+        ;;
+      esac
     fi
-
 
     # set ISO creation command based on architecture
     # and then create the ISO
     isopass=0
-    until [ "$isopass" -eq 1 ] ; do
-
-      #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file"
-      ## Not worried about the squashfs size for xorriso because it doesn't care what size the iso will be
-      ## Although if genisoimage or mkisofs are being used they do care about the iso size <-sef>
-      case ${CREATEISO} in
-        *genisoimage|*mkisofs )
-          SQUASHFSSIZE=`ls -s ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | awk -F " " '{print $1}'`
-          if [ "${SQUASHFSSIZE}" -gt "3999999" ] ; then
-              log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
-              exit 1
-          fi
-        ;;
-      esac
-
+    until [ "${isopass}" -eq 1 ] ; do
+      
       # do xorriso, genisoimage, or mkisofs depending on which will work best:
       case ${CREATEISO} in
         *xorriso* ) # Possibly create ISO using /usr/bin/xorriso - must be 64-bit OS
             # check the architecture
             case ${ARCH} in
               amd64 ) # If 64-bit, keep using xorriso
-                log_msg "  Using ${ISOCMD} to create the ISO"
-
-                # xorriso
-                #   - Can boot to ISO in either UEFI or non-UEFI mode when dd'd to a USB, CD or DVD
-                #   - Copy direct to CD or DVD using command:  sudo xorrecord dev=/dev/sr0 speed=12 fs=8m blank=as_needed -eject padsize=300k file.iso
-                #   - Copy direct to USB using command:  sudo dd if=file.iso of=/dev/sdX
-                ${CREATEISO} -as mkisofs \
-                  -isohybrid-mbr ${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin \
-                  -partition_offset 98 \
-                  -cache-inodes -J -l \
-                  -iso-level 3 \
-                  -V "${LIVECDLABEL}" \
-                  -c isolinux/boot.cat \
-                  -b isolinux/isolinux.bin \
-                  -no-emul-boot \
-                  -boot-load-size 4 \
-                  -boot-info-table \
-                  -eltorito-alt-boot \
-                  -e boot/grub/efi.img \
-                  -no-emul-boot \
-                  -isohybrid-gpt-basdat \
-                  -isohybrid-apm-hfsplus \
-                  -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
-
+                log_msg "  64-bit architecture -- Using ${ISOCMD} to create the ISO"
                 isopass=1
               ;;
-
               * ) # if not 64-bit, use something else besides xorriso
                 log_msg "xorriso only supported in 64-bit OS, attempting to use another program to create the ISO."
                 CREATEISO="`which genisoimage`"
@@ -1262,12 +1269,14 @@ iso (){
                   CREATEISO="`which mkisofs`"
                   ISOCMD="mkisofs"
                 fi
+                isopass=0
               ;;
             esac # end arch check
         ;; # end xorriso case select
-
+           # if isopass=0, goes back to beginning of loop
+        
         *genisoimage|*mkisofs ) # Create ISO using /usr/bin/genisoimage
-
+        
           #checking the size of the compressed filesystem to ensure it meets the iso9660 spec for a single file"
           ## Not worried about the squashfs size for xorriso because it doesn't care what size the iso will be
           ## Although if genisoimage or mkisofs are being used they do care about the iso size <-sef>
@@ -1276,31 +1285,69 @@ iso (){
               log_msg "The compressed filesystem is larger than genisoimage allows for a single file. You must try to reduce the amount of data you are backing up and try again."
               exit 1
           fi
-
+          
           # log message
           if [ "${ISOCMD}" = "genisoimage" ] ; then
             log_msg "Using genisoimage to create ISO."
           elif [ "${ISOCMD}" = "mkisofs" ] ; then
             log_msg "Using mkisofs to create ISO."
           fi
-
+          
           # check architecture
           if [ ! "${ARCH}" = "amd64" ] ; then
-            log_msg "This ISO may not be UEFI bootable. At this time, only supported in 64-bit OS."
+            log_msg "This ISO may not be UEFI bootable. At this time, UEFI is only supported in 64-bit OS."
           fi
-
-          # create the ISO
-          ${CREATEISO} -iso-level 3 -quiet -r -V "${LIVECDLABEL}" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+          
           isopass=1
         ;; # end genisoimage|mkisofs case select
-
+        
         * ) # none of the three ISO creation programs are found on OS
-          log_msg "ERROR: xorriso, genisoimage, or mkisofs programs not found."
-          isopass=1
+          log_msg "ERROR: xorriso, genisoimage, or mkisofs programs not found;"
+          log_msg "because of this the iso was not created. Exiting"
+          exit 1
         ;;
       esac # end CREATEISO check
-    done
+    done # end isopass loop check
 
+
+
+
+
+
+    ## Now actually create the ISO
+    case ${CREATEISO} in
+        *xorriso* ) # 
+            # xorriso
+            #   - Can boot to ISO in either UEFI or non-UEFI mode when dd'd to a USB, CD or DVD
+            #   - Copy direct to CD or DVD using command:  sudo xorrecord dev=/dev/sr0 speed=12 fs=8m blank=as_needed -eject padsize=300k file.iso
+            #   - Copy direct to USB using command:  sudo dd if=file.iso of=/dev/sdX
+            ${CREATEISO} -as mkisofs \
+              -isohybrid-mbr ${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin \
+              -partition_offset 98 \
+              -cache-inodes -J -l \
+              -iso-level 3 \
+              -V "${LIVECDLABEL}" \
+              -c isolinux/boot.cat \
+              -b isolinux/isolinux.bin \
+              -no-emul-boot \
+              -boot-load-size 4 \
+              -boot-info-table \
+              -eltorito-alt-boot \
+              -e boot/grub/efi.img \
+              -no-emul-boot \
+              -isohybrid-gpt-basdat \
+              -isohybrid-apm-hfsplus \
+              -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+        ;;
+        *genisoimage|*mkisofs ) # 
+            # create the ISO
+            ${CREATEISO} -iso-level 3 -quiet -r -V "${LIVECDLABEL}" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+        ;;
+    esac
+    
+    
+    
+    
     if [ ! -f ${WORKDIR}/${CUSTOMISO} ] ; then
         log_msg "The iso was not created. There was a problem. Exiting"
         exit 1
@@ -1308,7 +1355,7 @@ iso (){
 
     log_msg "Copying apt-setup back to original"
     if [ -f "/usr/share/ubiquity/apt-setup.0RIG" ] ; then
-        #~ cp -f /usr/share/ubiquity/apt-setup /usr/share/ubiquity/apt-setup.bodhi
+        #~ cp -f /usr/share/ubiquity/apt-setup /usr/share/ubiquity/apt-setup.bb
         cp -f /usr/share/ubiquity/apt-setup.0RIG /usr/share/ubiquity/apt-setup
     fi
 
