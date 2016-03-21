@@ -14,8 +14,8 @@ PATH="/usr/lib/ubiquity/apt-setup:/usr/lib/ubiquity/choose-mirror:$PATH" \
   OVERRIDE_BASE_INSTALLABLE=1 OVERRIDE_LEAVE_CD_MOUNTED=1 \
   /usr/lib/ubiquity/apt-setup/apt-setup --log-output /target
 
-mkdir -p /target/boot/efi
-touch /target/boot/efi/startup.nsh
-echo "fs0:\EFI\ubuntu\grubx64.efi" >> /target/boot/efi/startup.nsh
+#~ mkdir -p /target/boot/efi
+#~ touch /target/boot/efi/startup.nsh
+#~ echo "fs0:\EFI\ubuntu\grubx64.efi" >> /target/boot/efi/startup.nsh
 rm -f /target/etc/gdm/custom.conf
 rm -f /target/etc/mdm/mdm.conf

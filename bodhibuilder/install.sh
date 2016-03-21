@@ -181,7 +181,7 @@ function 32b_install () {
   
   # Check for needed commands
   echo " Checking for dependencies and required commands:"
-  commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid"
+  commands="memtest86+ coreutils dialog mkisofs genisoimage archdetect awk sed apt-get rsync cpio gunzip gzip lzma mksquashfs unsquashfs isohybrid dpkg-dev"
   for c in $commands ; do
     cmdcheck1="`which ${c}`"
     echo -n "   ${c}"
