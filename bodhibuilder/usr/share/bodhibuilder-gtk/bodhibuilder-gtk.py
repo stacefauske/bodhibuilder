@@ -63,7 +63,7 @@ except:
 
 APP = "bodhibuilder"
 DIR = "/usr/share/locale"
-APP_VERSION = "3.0.0-0"
+APP_VERSION = "2.1.0"
 
 locale.setlocale(locale.LC_ALL, '')
 gettext.bindtextdomain(APP, DIR)
@@ -114,6 +114,7 @@ class appgui:
         self.v.show()
         #self.v.feed_child(cmd+'\nexit 0\n')
 
+    #~ Backup Button
     def on_button1_clicked(self,widget):
         self.update_conf()
         if not msg_confirm(_("You have selected Backup Mode. Do not interrupt this process. Click OK to Start the Backup LiveCD/DVD process."), self.window1.get_widget("window1")):
@@ -131,6 +132,7 @@ class appgui:
         self.window1.get_widget("notebook1").set_current_page(0)
         self.v.handler_disconnect(self.callback_id)
 
+    #~ Dist Button
     def on_button2_clicked(self,widget):
         self.update_conf()
         if not msg_confirm(_("You have selected Dist Mode. Click OK to Start the Distributable LiveCD/DVD process."), self.window1.get_widget("window1")):
@@ -148,6 +150,7 @@ class appgui:
         self.window1.get_widget("notebook1").set_current_page(0)
         self.v.handler_disconnect(self.callback_id)
         
+    #~ Distcdfs Button
     def on_button3_clicked(self,widget):
         self.update_conf()
         if not msg_confirm(_("You have selected Dist CDFS Mode. Click OK to Start the Distributable LiveCD/DVD filesystem build process.")):
@@ -164,6 +167,7 @@ class appgui:
         self.window1.get_widget("notebook1").set_current_page(0)
         self.v.handler_disconnect(self.callback_id)
     
+    #~ Distiso Button
     def on_button4_clicked(self,widget):
         self.update_conf()
         WORKDIR = self.window1.get_widget("entry6").get_text()
@@ -185,6 +189,7 @@ class appgui:
         self.window1.get_widget("notebook1").set_current_page(0)
         self.v.handler_disconnect(self.callback_id)
         
+    #~ Clear Button
     def on_button5_clicked(self,widget):
         self.update_conf()
         if not msg_confirm(_("This will remove all the files from the temporary directory. Click OK to proceed.")):
@@ -201,15 +206,22 @@ class appgui:
         self.window1.get_widget("notebook1").set_current_page(0)
         self.v.handler_disconnect(self.callback_id)
         
+    #~ About button
     def on_button6_clicked(self,widget):
         # show about dialog
         about = gtk.AboutDialog()
         about.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
         about.set_program_name(_("Bodhibuilder"))
         about.set_version(APP_VERSION)
-        about.set_authors([_("Krasimir S. Stefanov <lokiisyourmaster@gmail.com>"),
-            _("Tony Brijeski <tb6517@yahoo.com>"),
-            _("Stace Fauske <stace.fauske@gmail.com>")
+        about.set_authors([_(" "),
+            _("       -- bodhibuilder --"),
+            _("Stace Fauske <stace.fauske@gmail.com>"),
+            _("Jeff Hoogland <JeffHoogland@Linux.com>"),
+            _("Charles van de Beek <charles.beek@gmail.com> Charles@Bodhi"),
+            _(" "),
+            _("       -- remastersys --"),
+            _("Krasimir S. Stefanov <lokiisyourmaster@gmail.com>"),
+            _("Tony Brijeski <tb6517@yahoo.com>")
         ])
         about.set_website("http://forums.bodhilinux.com/")
         translators = [
@@ -234,6 +246,7 @@ http://www.gnu.org/licenses/.''')
         about.run()
         about.hide()
 
+    #~ Working dir selection pop-up
     def on_button8_clicked(self,widget):
         dialog = gtk.FileChooserDialog(_("Select working directory"),
             None,
@@ -248,6 +261,7 @@ http://www.gnu.org/licenses/.''')
             self.window1.get_widget("entry6").set_text(dialog.get_filename())
         dialog.destroy()
 
+    #~ Select boot menu picture for Live CD
     def on_button9_clicked(self,widget):
         dialog = gtk.FileChooserDialog(title=_("Select 640x480 PNG image..."),action=gtk.FILE_CHOOSER_ACTION_OPEN,
             buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
@@ -275,6 +289,7 @@ http://www.gnu.org/licenses/.''')
         else:
             dialog.destroy()                  
 
+    #~ Select boot menu picture for installed environment
     def on_button10_clicked(self,widget):
         dialog = gtk.FileChooserDialog(title=_("Select image..."),action=gtk.FILE_CHOOSER_ACTION_OPEN,
             buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
@@ -319,7 +334,7 @@ http://www.gnu.org/licenses/.''')
         else:
             dialog.destroy()        
 
-    
+    #~ Select user whose settings to use
     def on_button11_clicked(self,widget):
         self.window1.get_widget("window1").hide()
         def cancel(widget, other = None):
@@ -378,7 +393,8 @@ http://www.gnu.org/licenses/.''')
             if int(data[2]) >= 1000 and int(data[2]) <= 1100:
                 ns.liststore.append([data[0], data[5]])
         ns.window.get_widget("window2").show()
-               
+    
+    #~ Select Plymouth Theme
     def on_button12_clicked(self,widget):
         self.window1.get_widget("window1").hide()
 
@@ -597,7 +613,7 @@ http://www.gnu.org/licenses/.''')
         list_themes()
         ns.window.get_widget("window3").show()
         
-
+    #~ Clear /etc/skel button
     def on_button13_clicked(self,widget):
         if msg_confirm(_("Are you sure you want to delete the contents of /etc/skel?")):
             shutil.rmtree('/etc/skel/')
@@ -642,6 +658,15 @@ http://www.gnu.org/licenses/.''')
         self.window1.get_widget("checkbutton1").set_active(
             self.getvalue('BACKUPSHOWINSTALL', config_txt, '1').upper() == '1')
 
+        self.window1.get_widget("entry8").set_text(
+            self.getvalue('DISTICONS', config_txt, ''))
+
+        self.window1.get_widget("entry9").set_text(
+            self.getvalue('DISTLOCALE', config_txt, ''))
+
+        self.window1.get_widget("entry10").set_text(
+            self.getvalue('DISTNAME', config_txt, 'Bodhi Linux'))
+
     def update_conf(self):
         if self.window1.get_widget("checkbutton1").get_active():
             BACKUPSHOWINSTALL = '1'
@@ -657,7 +682,13 @@ WORKDIR="%(WORKDIR)s"
 
 
 # Here you can add any other files or directories to be excluded from the live filesystem
-# Separate each entry with a space
+#   Use absolute paths
+#   Exclude specific files using the path to the file = /path/to/file
+#   Exclude specific directories using a trailing slash = /path/to/directory/
+#   Exclude all directory contents with an asterisk = /path/to/directory/*
+#   Exclude all matching sets of files or directories using an asterisk as a wildcard = /path/to/something*
+#   If the entry does not exist as an actual file or directory, rsync & mksquashfs will simply skip over it
+#   Separate each entry with a space
 EXCLUDES="%(EXCLUDES)s"
 
 
@@ -672,7 +703,9 @@ LIVECDLABEL="%(LIVECDLABEL)s"
 # Here you can change the name of the ISO file that is created
 CUSTOMISO="%(CUSTOMISO)s"
 
+
 # Here you can change the mksquashfs options
+#   OK to leave this empty, the defaults will use the best compression I know of (as of this writing)
 SQUASHFSOPTS="%(SQUASHFSOPTS)s"
 
 
@@ -682,6 +715,33 @@ BACKUPSHOWINSTALL="%(BACKUPSHOWINSTALL)s"
 
 # Here you can change the url for the usb-creator info
 LIVECDURL="%(LIVECDURL)s"
+
+
+# Here you can specify icons or icon sets to include in a "dist" remaster only.
+#   List here the icons or sets you want to keep that are in this path:
+#     /usr/share/icons/(icon or icon set name)
+#   Do not list the whole path, just the set or icon name.
+#   If it's not a "dist" remaster, all icon sets will be included unless you specifically
+#   exclude their directories in the main EXCLUDES section above.
+DISTICONS="%(DISTICONS)s"
+# Example:
+##~ DISTICONS="AwOken-Bodhi hicolor myfavoriteicon1.png myfavoriteicon2.png"
+
+
+# Here you can specify locales to include in a "dist" remaster only
+#   List here the locales you want to keep that are in this path:
+#     /usr/share/locale/(locale name)
+#   Do not list the whole path, just the directories of the locales you wish to include.
+#   If it's not a "dist" remaster, all locales will be included unless you specifically
+#   exclude their directories in the main EXCLUDES section above.
+DISTLOCALE="%(DISTLOCALE)s"
+# Example:
+##~ DISTLOCALE="en en_AU en_CA en_GB de"
+
+
+# Choose the distribution name you want to show up in GRUB
+DISTNAME="%(DISTNAME)s"
+
 ''' % ({
         "WORKDIR" : self.window1.get_widget("entry6").get_text(),
         "EXCLUDES" : self.window1.get_widget("entry4").get_text(),
@@ -690,7 +750,10 @@ LIVECDURL="%(LIVECDURL)s"
         "CUSTOMISO" : self.window1.get_widget("entry3").get_text(),
         "SQUASHFSOPTS" : self.window1.get_widget("entry7").get_text(),
         "BACKUPSHOWINSTALL" : BACKUPSHOWINSTALL,
-        "LIVECDURL" : self.window1.get_widget("entry5").get_text()
+        "LIVECDURL" : self.window1.get_widget("entry5").get_text(),
+        "DISTICONS" : self.window1.get_widget("entry8").get_text(),
+        "DISTLOCALE" : self.window1.get_widget("entry9").get_text(),
+        "DISTNAME" : self.window1.get_widget("entry10").get_text()
         })
         
         conf = open('/etc/bodhibuilder.conf', 'w+')
