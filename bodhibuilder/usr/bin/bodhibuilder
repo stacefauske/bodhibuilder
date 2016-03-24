@@ -1356,7 +1356,6 @@ iso (){
 
     log_msg "Copying apt-setup back to original"
     if [ -f "/usr/share/ubiquity/apt-setup.0RIG" ] ; then
-        #~ cp -f /usr/share/ubiquity/apt-setup /usr/share/ubiquity/apt-setup.bb
         cp -f /usr/share/ubiquity/apt-setup.0RIG /usr/share/ubiquity/apt-setup
     fi
 

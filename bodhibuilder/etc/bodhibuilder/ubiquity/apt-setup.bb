@@ -15,10 +15,16 @@ PATH="/usr/lib/ubiquity/apt-setup:/usr/lib/ubiquity/choose-mirror:$PATH" \
   /usr/lib/ubiquity/apt-setup/apt-setup --log-output /target
 
 # UEFI support for VM's:
-if [ -d /sys/firmware/efi/ ] ; then
+if [ -e /sys/firmware/efi/efivars/* ] ; then
+  rm -f /target/boot/efi/startup.nsh*
   mkdir -p /target/boot/efi
   touch /target/boot/efi/startup.nsh
-  echo "fs0:\EFI\ubuntu\grubx64.efi" >> /target/boot/efi/startup.nsh
+  ARCH=`archdetect | cut -d/ -f1`
+  if [ "${ARCH}" = "amd64" ] ; then
+    echo "fs0:\EFI\ubuntu\grubx64.efi" >> /target/boot/efi/startup.nsh
+  else
+    echo "fs0:\EFI\ubuntu\grubia32.efi" >> /target/boot/efi/startup.nsh
+  fi
 fi
 
 rm -f /target/etc/gdm/custom.conf
