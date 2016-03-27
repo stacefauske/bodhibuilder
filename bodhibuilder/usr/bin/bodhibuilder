@@ -475,19 +475,19 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         # Fixes http://forums.bodhilinux.com/index.php?/topic/10506-installation-crashes-by-some-languages-rc1/
         # Ubiquity fails if the installation locale differs from the generated locale, so simply removing the
         # generated locale confs fixes the issue.
-        if [ -e $WORKDIR/dummysys/etc/default/locale ]; then
-            rm -f $WORKDIR/dummysys/etc/default/locale
+        if [ -e ${WORKDIR}/dummysys/etc/default/locale ]; then
+            rm -f ${WORKDIR}/dummysys/etc/default/locale
         fi
-        if [ -e $WORKDIR/dummysys/var/lib/locales/supported.d/local ]; then
-            rm -f $WORKDIR/dummysys/var/lib/locales/supported.d/local
+        if [ -e ${WORKDIR}/dummysys/var/lib/locales/supported.d/local ]; then
+            rm -f ${WORKDIR}/dummysys/var/lib/locales/supported.d/local
         fi
     
         log_msg "Cleaning locate database within dummysys"
         # Blank the locale db because it can be a privacy issue, and can be
         # rather large, and then regenerate it within the dummysys.
-        if [ -e $WORKDIR/dummysys/var/lib/mlocate/mlocate.db ]; then
-            rm -f $WORKDIR/dummysys/var/lib/mlocate/mlocate.db
-            updatedb -l 1 -o $WORKDIR/dummysys/var/lib/mlocate/mlocate.db
+        if [ -e ${WORKDIR}/dummysys/var/lib/mlocate/mlocate.db ]; then
+            rm -f ${WORKDIR}/dummysys/var/lib/mlocate/mlocate.db
+            updatedb -l 1 -o ${WORKDIR}/dummysys/var/lib/mlocate/mlocate.db
         fi
 
 
@@ -514,10 +514,10 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
 
         cat ${WORKDIR}/tmpusers | while read LINE ;do
 
-            echo $LINE | xargs -i sed -e 's/,{}$//g' ${WORKDIR}/dummysys/etc/group > ${WORKDIR}/dummysys/etc/group.new1
-            echo $LINE | xargs -i sed -e 's/,{},/,/g' ${WORKDIR}/dummysys/etc/group.new1 > ${WORKDIR}/dummysys/etc/group.new2
-            echo $LINE | xargs -i sed -e 's/:{}$/:/g' ${WORKDIR}/dummysys/etc/group.new2 > ${WORKDIR}/dummysys/etc/group.new3
-            echo $LINE | xargs -i sed -e 's/:{},/:/g' ${WORKDIR}/dummysys/etc/group.new3 > ${WORKDIR}/dummysys/etc/group
+            echo ${LINE} | xargs -i sed -e 's/,{}$//g' ${WORKDIR}/dummysys/etc/group > ${WORKDIR}/dummysys/etc/group.new1
+            echo ${LINE} | xargs -i sed -e 's/,{},/,/g' ${WORKDIR}/dummysys/etc/group.new1 > ${WORKDIR}/dummysys/etc/group.new2
+            echo ${LINE} | xargs -i sed -e 's/:{}$/:/g' ${WORKDIR}/dummysys/etc/group.new2 > ${WORKDIR}/dummysys/etc/group.new3
+            echo ${LINE} | xargs -i sed -e 's/:{},/:/g' ${WORKDIR}/dummysys/etc/group.new3 > ${WORKDIR}/dummysys/etc/group
 
             rm -f ${WORKDIR}/dummysys/etc/group.new* &> /dev/null
 
@@ -635,8 +635,8 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     # Creating a repository for the Ubiquity install
     #~ if [ "${ARCH}" = "amd64" ] ; then
       log_msg "Creating a Packages.gz repository for the Ubiquity install"
-      rm -f $WORKDIR/ISOTMP/dists/Packages.gz
-      cd $WORKDIR/ISOTMP/
+      rm -f ${WORKDIR}/ISOTMP/dists/Packages.gz
+      cd ${WORKDIR}/ISOTMP/
       dpkg-scanpackages pool /dev/null 2>>${WORKDIR}/bodhibuilder.log | gzip -9c > ./dists/Packages.gz
       cd -
     #~ fi
@@ -715,23 +715,23 @@ FOO
         log_msg "Excluding folders from the backup that will cause issues"
 
         for bi in `ls /home`; do
-            if [ -d /home/$bi/.gvfs ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.gvfs "
+            if [ -d /home/${bi}/.gvfs ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.gvfs "
             fi
-            if [ -d /home/$bi/.cache ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.cache "
+            if [ -d /home/${bi}/.cache ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.cache "
             fi
-            if [ -d /home/$bi/.thumbnails ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.thumbnails "
+            if [ -d /home/${bi}/.thumbnails ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.thumbnails "
             fi
-            if [ -d /home/$bi/.local/share/gvfs-metadata ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.local/share/gvfs-metadata "
+            if [ -d /home/${bi}/.local/share/gvfs-metadata ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.local/share/gvfs-metadata "
             fi
-            if [ -d /home/$bi/.local/gvfs-metadata ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.local/gvfs-metadata "
+            if [ -d /home/${bi}/.local/gvfs-metadata ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.local/gvfs-metadata "
             fi
-            if [ -d /home/$bi/.local/share/Trash ] ; then
-                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/$bi/.local/share/Trash "
+            if [ -d /home/${bi}/.local/share/Trash ] ; then
+                BACKUPEXCLUDES="${BACKUPEXCLUDES} /home/${bi}/.local/share/Trash "
             fi
         done
 
@@ -841,13 +841,13 @@ FOO
     #new
     # first check to see if it's 64bit,
     # 64bit needs vmlinuz.efi
-    if [ "$ARCH" = "amd64" ] ; then
+    if [ "${ARCH}" = "amd64" ] ; then
         log_msg "Creating casper/vmlinuz.efi"
         # simply renaming it to vmlinuz.efi hasn't hurt anything so far:
-        cp /boot/vmlinuz-`uname -r` $WORKDIR/ISOTMP/casper/vmlinuz.efi
+        cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz.efi
     else
         log_msg "Creating casper/vmlinuz"
-        cp /boot/vmlinuz-`uname -r` $WORKDIR/ISOTMP/casper/vmlinuz
+        cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz
     fi
 
 
@@ -863,7 +863,7 @@ FOO
     #~ cp /boot/initrd.img-`uname -r` ${WORKDIR}/ISOTMP/casper/initrd.gz
     #~ gunzip ${WORKDIR}/ISOTMP/casper/initrd.gz #changes initrd.gz to initrd
     #~ mkdir ${WORKDIR}/ISOTMP/casper/tmpinitrd
-    #~ currdir=$PWD
+    #~ currdir=${PWD}
     #~ cd ${WORKDIR}/ISOTMP/casper/tmpinitrd
     #~ log_msg "Unpacking initrd.gz"
     #~ cpio -id < ../initrd
@@ -872,15 +872,15 @@ FOO
     #~ log_msg "Repacking and compressing as initrd.lz"
     #~ find . | cpio --quiet --dereference -o -H newc | lzma -7 > ../initrd.lz
     #~ cd ${WORKDIR}/ISOTMP/casper
-    #~ log_msg "Cleaning up $PWD"
+    #~ log_msg "Cleaning up ${PWD}"
     #~ if [ -d ./tmpinitrd ] ; then #remove unnecessary leftovers
         #~ rm -r ./tmpinitrd
     #~ fi
     #~ if [ -f ./initrd ] ; then #remove unnecessary leftovers
         #~ rm ./initrd
     #~ fi
-    #~ cd $currdir #cd back to original dir & continue remastering
-    #~ log_msg "Working in $PWD"
+    #~ cd ${currdir} #cd back to original dir & continue remastering
+    #~ log_msg "Working in ${PWD}"
 
 
     #exit if missing... either vmlinuz or vmlinuz.efi
@@ -919,14 +919,14 @@ FOO
       backup )
         # add folders to mksquashfs
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc`; do
-            REALFOLDERS="${REALFOLDERS} /$d"
+            REALFOLDERS="${REALFOLDERS} /${d}"
         done
       ;;
 
       dist )
         # add folders to mksquashfs
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc | grep -v home`; do
-            REALFOLDERS="${REALFOLDERS} /$d"
+            REALFOLDERS="${REALFOLDERS} /${d}"
         done
 
 
@@ -1056,8 +1056,8 @@ FOO
     #add filesystem size for lucid
     log_msg "Calculating the installed filesystem size for the installer"
     unsquashfs -lls ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | grep -v " inodes " | grep -v "unsquashfs:" | awk '{print $3}' | grep -v "," > /tmp/size.tmp
-    for i in `cat /tmp/size.tmp`; do a=$(($a+$i)); done
-    echo $a > ${WORKDIR}/ISOTMP/casper/filesystem.size
+    for i in `cat /tmp/size.tmp`; do a=$((${a}+${i})); done
+    echo ${a} > ${WORKDIR}/ISOTMP/casper/filesystem.size
 
     log_msg "Removing bodhibuilder-firstboot from current system's startup"
     update-rc.d -f bodhibuilder-firstboot remove
