@@ -55,8 +55,10 @@ Usage of bodhibuilder $BODHIBUILDERVERSION is as follows:
 
    sudo bodhibuilder -b|-c|-d|backup|clean|dist [[custom.iso]|[cdfs]|[iso custom.iso]]
 
+See the file /etc/bodhibuilder.conf for more configuration options.
 
-Examples:
+
+Usage examples:
 
    sudo bodhibuilder backup                (to make a livecd/dvd backup of your system)
    sudo bodhibuilder -b
@@ -79,6 +81,9 @@ Examples:
    cdfs and iso options should only be used if you wish to modify something on the
    cd before the iso is created.  An example of this would be to modify the isolinux
    portion of the livecd/dvd
+
+To use the graphical version of bodhibuilder, type in a terminal
+   sudo bodhibuilder-gtk
 
    >> Type "Q" at any time to exit this help <<
 
