@@ -369,8 +369,10 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         apt-get -y -q remove ubiquity-frontend-kde &> /dev/null
     fi
 
-    # Check if they are using lightdm and if it is setup properly for the live default session
-    [ "`grep lightdm /etc/X11/default-display-manager`" != "" ] && [ ! -f /etc/lightdm/lightdm.conf ] && [ ! -f /usr/share/xsessions/enlightenment.desktop ] && echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" &&  echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" >> ${WORKDIR}/bodhibuilder.log && exit 1
+
+### Don't check for lightdm anymore, just let whatever DM do it's thing
+    #~ # Check if they are using lightdm and if it is setup properly for the live default session
+    #~ [ "`grep lightdm /etc/X11/default-display-manager`" != "" ] && [ ! -f /etc/lightdm/lightdm.conf ] && [ ! -f /usr/share/xsessions/enlightenment.desktop ] && echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" &&  echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" >> ${WORKDIR}/bodhibuilder.log && exit 1
 
     # Check and log the display manager in use:
     currentdm="`cat /etc/X11/default-display-manager`"
