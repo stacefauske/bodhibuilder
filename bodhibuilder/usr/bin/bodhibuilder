@@ -695,6 +695,8 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       log_msg "Moving all EFI files to the ISOTMP folder"
       cp -a /etc/bodhibuilder/uefi/* ${WORKDIR}/ISOTMP/
       
+      # Add custom DISTNAME to UEFI grub
+      sed -i 's/__DISTNAME__/'"${DISTNAME}"'/g' ${WORKDIR}/ISOTMP/boot/grub/grub.cfg
       # move deb files section if all have successfully downloaded: -- ONE directory
       if [ "${dlpkgpass}" == "1" ] ; then # successful downloads
         log_msg "moving deb files into pool"
@@ -750,8 +752,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         cp ${VESAMENU} ${WORKDIR}/ISOTMP/isolinux/
         # setup isolinux for the livecd
         VERSION=`lsb_release -r | awk '{print $2}' | awk -F "." '{print $1}'`
-        sed -e 's/__DISTNAME__/'"${DISTNAME}"'/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu > \
-        ${WORKDIR}/ISOTMP/isolinux/isolinux.cfg
+        sed -e 's/__DISTNAME__/'"${DISTNAME}"'/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu > ${WORKDIR}/ISOTMP/isolinux/isolinux.cfg
         cp /etc/bodhibuilder/isolinux/splash.png ${WORKDIR}/ISOTMP/isolinux/splash.png
     else
         log_msg "Copying your custom isolinux setup to the live system"
