@@ -24,7 +24,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# ORIGINAL COMMENTS:
+# ORIGINAL REMASTERSYS COMMENTS:
 # remastersys script to make an installable livecd/dvd from an (XK)Ubuntu installed
 # and customized system
 #  Created by Tony "Fragadelic" Brijeski
@@ -45,6 +45,9 @@ if [ "$(whoami)" != "root" ] ; then
 fi
 
 
+# load the bodhibuilder version
+. /etc/bodhibuilder/bodhibuilder.version
+
 
 
 ##### FUNCTION helper #####
@@ -56,6 +59,11 @@ Usage of bodhibuilder $BODHIBUILDERVERSION is as follows:
    sudo bodhibuilder -b|-c|-d|backup|clean|dist [[custom.iso]|[cdfs]|[iso custom.iso]]
 
 See the file /etc/bodhibuilder.conf for more configuration options.
+
+Add custom repositories and the comments for them to the file 
+   /etc/bodhibuilder/apt/custom_repos
+   and during firstboot of the newly installed OS, this entire file 
+   will be appended to /etc/apt/sources.list.
 
 
 Usage examples:
@@ -81,9 +89,11 @@ Usage examples:
    cdfs and iso options should only be used if you wish to modify something on the
    cd before the iso is created.  An example of this would be to modify the isolinux
    portion of the livecd/dvd
+   
+   sudo bodhibuilder version               (reports the current version of bodhibuilder)
+   sudo bodhibuilder -v
 
-To use the graphical version of bodhibuilder, type in a terminal
-   sudo bodhibuilder-gtk
+   sudo bodhibuilder-gtk                   (use the graphical version of bodhibuilder)
 
    >> Type "Q" at any time to exit this help <<
 
@@ -93,13 +103,32 @@ FOO
 
 
 
-
-
-# load the bodhibuilder version
-. /etc/bodhibuilder/bodhibuilder.version
-
 # load the bodhibuilder.conf file
 . /etc/bodhibuilder.conf
+
+# If helper or clean is all that's needed, just go ahead and do that
+case $1 in
+    backup|-b|dist|-d )
+    ;;
+    clean|-c )
+        echo "Removing the build directory now..."
+        rm -rf ${WORKDIR}
+        echo "Done...Exiting"
+        exit 0
+    ;;
+    version|-v )
+        echo " bodhibuilder  ${BODHIBUILDERVERSION}"
+        exit 0
+    ;;
+    * )
+        helper
+        exit 1
+    ;;
+esac
+
+
+
+
 
 # Static variables
 ARCH=`archdetect | cut -d/ -f1`
@@ -119,6 +148,14 @@ else
 fi
 if [ ! -d ${WORKDIR} ] ; then
     mkdir -p ${WORKDIR}
+    if [ ! -d ${WORKDIR} ] ; then
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "! Could not create the working directory !"
+      echo "!     ${WORKDIR} !"
+      echo "! Exiting                                !"
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      exit 1
+    fi
 fi
 
 cd ${WORKDIR}
@@ -130,9 +167,10 @@ fi
 touch ${WORKDIR}/bodhibuilder.log
 cat > ${WORKDIR}/bodhibuilder.log <<FOO
 
-     ===============================
-     ==  bodhibuilder  log  file  ==
-     ===============================
+       ===============================
+       ==  bodhibuilder  log  file  ==
+       ===============================
+           bodhibuilder  $BODHIBUILDERVERSION
 
 FOO
 
@@ -150,11 +188,37 @@ log_msg() {
 #~ }
 
 
+# what kind of disk space are we dealing with to begin?
+echo "------------------------------------------------------" >>${WORKDIR}/bodhibuilder.log
+echo "Original disk size information" >>${WORKDIR}/bodhibuilder.log
+df -h >>${WORKDIR}/bodhibuilder.log
+echo "------------------------------------------------------" >>${WORKDIR}/bodhibuilder.log
+
+
 # echo bodhibuilder .conf & .version vars to log
 echo " bodhibuilder.conf variables received:" >>${WORKDIR}/bodhibuilder.log
 cat /etc/bodhibuilder.conf | grep -e '^[A-Z].*=".*"' >>${WORKDIR}/bodhibuilder.log
-echo " bodhibuilder.version variables received:" >>${WORKDIR}/bodhibuilder.log
-echo "BODHIBUILDERVERSION:  ${BODHIBUILDERVERSION}" >>${WORKDIR}/bodhibuilder.log
+echo " bodhibuilder version info:" >>${WORKDIR}/bodhibuilder.log
+cat /etc/bodhibuilder/bodhibuilder.version >>${WORKDIR}/bodhibuilder.log
+
+# echo info about system into log file
+echo " System info:" >>${WORKDIR}/bodhibuilder.log
+echo "ARCH = ${ARCH}" >>${WORKDIR}/bodhibuilder.log
+echo "SUBARCH = ${SUBARCH}" >>${WORKDIR}/bodhibuilder.log
+if [ -e "/sys/firmware/efi/efivars/*" ] ; then
+  BOOT_FIRMWARE="EFI"
+  echo "EFI vars found in /sys/firmware/efi/efivars/" >>${WORKDIR}/bodhibuilder.log
+else
+  BOOT_FIRMWARE="BIOS"
+  echo "no EFI vars found in /sys/firmware/efi/efivars/" >>${WORKDIR}/bodhibuilder.log
+fi
+echo "BOOT_FIRMWARE = ${BOOT_FIRMWARE}" >>${WORKDIR}/bodhibuilder.log
+echo "UBUVERSION = ${UBUVERSION}  (bb's take on Ubuntu version)" >>${WORKDIR}/bodhibuilder.log
+
+echo " System lsb-release info:" >>${WORKDIR}/bodhibuilder.log
+cat /etc/lsb-release >>${WORKDIR}/bodhibuilder.log
+echo "------------------------------------------------------" >>${WORKDIR}/bodhibuilder.log
+echo "" >>${WORKDIR}/bodhibuilder.log
 
 # echo files/dirs in /etc/bodhibuilder to the log file
 echo " Files & Dirs in location /etc/bodhibuilder:" >>${WORKDIR}/bodhibuilder.log
@@ -308,6 +372,12 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     # Check if they are using lightdm and if it is setup properly for the live default session
     [ "`grep lightdm /etc/X11/default-display-manager`" != "" ] && [ ! -f /etc/lightdm/lightdm.conf ] && [ ! -f /usr/share/xsessions/enlightenment.desktop ] && echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" &&  echo "Lightdm not setup properly. You must set your default desktop with lightdm prior to remastering" >> ${WORKDIR}/bodhibuilder.log && exit 1
 
+    # Check and log the display manager in use:
+    currentdm="`cat /etc/X11/default-display-manager`"
+    echo "Current Display Manager is @ ${currentdm}"
+
+
+
 
     sleep 1
 
@@ -333,7 +403,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     log_msg "Creating ${WORKDIR}/ISOTMP folder tree"
     mkdir -p ${WORKDIR}/ISOTMP/{isolinux,install,.disk}
 
-    log_msg "Copying /var and /etc to temp area and excluding extra files  ...  this may take a while so be patient"
+    log_msg "Copying /var and /etc to temp area and excluding extra files  ...  this may take a while so please be patient"
 
 
 
@@ -565,7 +635,9 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       if [ "${inetstatus}" -eq 0 ] ; then # internet connection detected
         log_msg "connection to internet detected"
         # make sure apt-get cache is updated, or it might try to download the wrong version
+        log_msg "Updating repos"
         apt-get update >>${WORKDIR}/bodhibuilder.log
+        log_msg "Installing dpkg-dev if it's not already installed"
         apt-get install -y -q --no-install-recommends dpkg-dev >>${WORKDIR}/bodhibuilder.log #CHARLES
         # packages to be downloaded and moved into pool: -- ONE directory
         #~ dlpkg_1="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db shim shim-signed"
@@ -593,6 +665,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         
         # download pkgs
         apt-get download ${dlpkg_all} | tee -a ${WORKDIR}/bodhibuilder.log
+        chmod 755 ./* # still working in dlpkgtempdir
         
         # make sure ALL files were successfully downloaded
         dlpkgpass="1"
@@ -622,10 +695,9 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       
       # move deb files section if all have successfully downloaded: -- ONE directory
       if [ "${dlpkgpass}" == "1" ] ; then # successful downloads
-        chmod 755 ./* # still in dlpkgtempdir
         log_msg "moving deb files into pool"
         rm -f ${WORKDIR}/ISOTMP/pool/*
-        mv ./* ${WORKDIR}/ISOTMP/pool/ # mv all new files into pool
+        mv ./* ${WORKDIR}/ISOTMP/pool/ # mv all new files from dlpkgpass into pool
         cd -
         rm -rf ./dlpkgtempdir
       else # unsuccessful downloads
@@ -682,7 +754,6 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     else
         log_msg "Copying your custom isolinux setup to the live system"
         cp /etc/bodhibuilder/customisolinux/* ${WORKDIR}/ISOTMP/isolinux/ &> /dev/null
-
     fi
 
     log_msg "Based on the ARCH of the system, setting the README.diskdefines file"
@@ -909,7 +980,7 @@ FOO
         rm -f ${WORKDIR}/ISOTMP/casper/filesystem.squashfs &> /dev/null
     fi
 
-    log_msg "Creating filesystem.squashfs  ...  this will take a while so be patient"
+    log_msg "Creating filesystem.squashfs  ...  this will take a while so please be patient"
 
     REALFOLDERS=""
 
@@ -1063,7 +1134,8 @@ FOO
     unsquashfs -lls ${WORKDIR}/ISOTMP/casper/filesystem.squashfs | grep -v " inodes " | grep -v "unsquashfs:" | awk '{print $3}' | grep -v "," > /tmp/size.tmp
     for i in `cat /tmp/size.tmp`; do a=$((${a}+${i})); done
     echo ${a} > ${WORKDIR}/ISOTMP/casper/filesystem.size
-
+    
+    # remove bodhibuilder-firstboot from the host system
     log_msg "Removing bodhibuilder-firstboot from current system's startup"
     update-rc.d -f bodhibuilder-firstboot remove
     chmod 644 /etc/init.d/bodhibuilder-firstboot
@@ -1276,6 +1348,7 @@ iso (){
               -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
         ;;
         *genisoimage|*mkisofs ) # 
+            log_msg "creating ISO with ${ISOCMD}"
             # create the ISO
             ${CREATEISO} -iso-level 3 -quiet -r -V "${LIVECDLABEL}" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
         ;;
@@ -1297,20 +1370,29 @@ iso (){
     # Make the iso hybrid so it can be simply dd copied to a usb flash drive.
     case ${CREATEISO} in
       *xorriso* ) # no need to make hybrid with xorriso
-        log_msg "================================================================================"
-        log_msg ""
-        log_msg "Good news, ${CUSTOMISO} was created using the xorriso package."
-        log_msg "You can now optionally use the following commands to make a medium"
-        log_msg "that is bootable in both UEFI or BIOS (non-UEFI) modes."
-        log_msg "  *Create a bootable CD or DVD:"
-        log_msg "    $ sudo xorrecord dev=/dev/sr0 speed=12 fs=8m blank=as_needed -eject padsize=300k ${WORKDIR}/${CUSTOMISO}"
-        log_msg "  *Create a bootable USB:"
-        log_msg "   (you will need to determine which device your USB has been assigned,"
-        log_msg "   DO NOT copy & paste this command directly without changing '/dev/sdX'."
-        log_msg "   dd CAN be dangerous ... now you've been warned.)"
-        log_msg "    $ sudo dd if=${WORKDIR}/${CUSTOMISO} of=/dev/sdX"
-        log_msg ""
-        log_msg "================================================================================"
+        case ${ARCH} in
+          amd64 )
+            log_msg "================================================================================"
+            log_msg ""
+            log_msg "Good news, ${CUSTOMISO} was created using the xorriso package."
+            log_msg "You can now optionally use the following commands to make a medium"
+            log_msg "that is bootable in both UEFI or BIOS (non-UEFI) modes."
+            log_msg "  *Create a bootable CD or DVD:"
+            log_msg "    $ sudo xorrecord dev=/dev/sr0 speed=12 fs=8m blank=as_needed -eject padsize=300k ${WORKDIR}/${CUSTOMISO}"
+            log_msg "  *Create a bootable USB:"
+            log_msg "   (you will need to determine which device your USB has been assigned,"
+            log_msg "   Do not copy & paste this command directly without changing '/dev/sdX', it won't work."
+            log_msg "   dd CAN be dangerous ... now you've been warned.)"
+            log_msg "    $ sudo dd if=${WORKDIR}/${CUSTOMISO} of=/dev/sdX"
+            log_msg ""
+            log_msg "================================================================================"
+          ;;
+          * )
+            log_msg ""
+            log_msg "32-bit xorriso,  I don't really know what's going to happen with UEFI right now."
+            log_msg ""
+          ;;
+        esac
       ;;
       * ) # if not using xorriso, need to make it a hybrid, but it still might not be uefi bootable
         log_msg "Making ${CUSTOMISO} a hybrid iso"
