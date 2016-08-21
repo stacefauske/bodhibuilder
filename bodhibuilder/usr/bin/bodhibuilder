@@ -1075,47 +1075,47 @@ FOO
         for d in `ls / | grep -v etc | grep -v run | grep -v tmp | grep -v sys | grep -v var | grep -v dev | grep -v media | grep -v mnt | grep -v lost+found | grep -v proc | grep -v home`; do
             REALFOLDERS="${REALFOLDERS} /${d}"
         done
-
-
-        # Include only wanted icons & icon sets - multiple choices
-        if [ "${DISTICONS}" ] ; then
-          log_msg "Purging unwanted icon sets"
-          #~ EXCLUDEICONS=`ls -db /usr/share/icons/*`
-          EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -exec echo -n {} +` # all files in /usr/share/icons/
-          echo "      EXCLUDEICONS started as:" >>${WORKDIR}/bodhibuilder.log
-          echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
-          for i in ${DISTICONS} ; do
-            if [ -e "/usr/share/icons/${i}" ] ; then
-              echo "Removing ${i} from EXCLUDEICONS" >>${WORKDIR}/bodhibuilder.log
-              EXCLUDEICONS=`echo ${EXCLUDEICONS} | sed -e "s/ \/usr\/share\/icons\/${i} / /"`
-            fi
-          done
-          # EXCLUDEICONS is now all files in /usr/share/icons/ except those from DISTICONS
-          echo "      EXCLUDEICONS is now:" >>${WORKDIR}/bodhibuilder.log
-          echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
-        fi
-
-
-
-        # Include only wanted locales - multiple choices
-        if [ "${DISTLOCALE}" ] ; then
-          log_msg "Purging unwanted locales"
-          #~ EXCLUDELOCALES=`ls -db /usr/share/locale/*` # does not list directories only
-          EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d -exec echo -n {} +` # lists all directories in /usr/share/locale/
-          echo "      EXCLUDELOCALES started as:" >>${WORKDIR}/bodhibuilder.log
-          echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
-          for i in ${DISTLOCALE} ; do
-            if [ -d "/usr/share/locale/${i}" ] ; then
-              echo "Removing ${i} from EXCLUDELOCALES" >>${WORKDIR}/bodhibuilder.log
-              EXCLUDELOCALES=`echo ${EXCLUDELOCALES} | sed -e "s/ \/usr\/share\/locale\/${i} / /"`
-            fi
-          done
-          # EXCLUDELOCALES is now all files in /usr/share/locale/ except those from DISTLOCALE
-          echo "      EXCLUDELOCALES is now:" >>${WORKDIR}/bodhibuilder.log
-          echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
-        fi
       ;;
     esac
+
+
+
+    # Include only wanted icons & icon sets - multiple choices
+    if [ "${DISTICONS}" ] ; then
+      log_msg "Purging unwanted icon sets"
+      #~ EXCLUDEICONS=`ls -db /usr/share/icons/*`
+      EXCLUDEICONS=`find /usr/share/icons/* -maxdepth 0 -exec echo -n {} +` # all files in /usr/share/icons/
+      echo "      EXCLUDEICONS started as:" >>${WORKDIR}/bodhibuilder.log
+      echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
+      for i in ${DISTICONS} ; do
+        if [ -e "/usr/share/icons/${i}" ] ; then
+          echo "Removing ${i} from EXCLUDEICONS" >>${WORKDIR}/bodhibuilder.log
+          EXCLUDEICONS=`echo ${EXCLUDEICONS} | sed -e "s/ \/usr\/share\/icons\/${i} / /"`
+        fi
+      done
+      # EXCLUDEICONS is now all files in /usr/share/icons/ except those from DISTICONS
+      echo "      EXCLUDEICONS is now:" >>${WORKDIR}/bodhibuilder.log
+      echo " > ${EXCLUDEICONS}" >>${WORKDIR}/bodhibuilder.log
+    fi
+
+    # Include only wanted locales - multiple choices
+    if [ "${DISTLOCALE}" ] ; then
+      log_msg "Purging unwanted locales"
+      #~ EXCLUDELOCALES=`ls -db /usr/share/locale/*` # does not list directories only
+      EXCLUDELOCALES=`find /usr/share/locale/* -maxdepth 0 -type d -exec echo -n {} +` # lists all directories in /usr/share/locale/
+      echo "      EXCLUDELOCALES started as:" >>${WORKDIR}/bodhibuilder.log
+      echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
+      for i in ${DISTLOCALE} ; do
+        if [ -d "/usr/share/locale/${i}" ] ; then
+          echo "Removing ${i} from EXCLUDELOCALES" >>${WORKDIR}/bodhibuilder.log
+          EXCLUDELOCALES=`echo ${EXCLUDELOCALES} | sed -e "s/ \/usr\/share\/locale\/${i} / /"`
+        fi
+      done
+      # EXCLUDELOCALES is now all files in /usr/share/locale/ except those from DISTLOCALE
+      echo "      EXCLUDELOCALES is now:" >>${WORKDIR}/bodhibuilder.log
+      echo " > ${EXCLUDELOCALES}" >>${WORKDIR}/bodhibuilder.log
+    fi
+
 
 
     # set the mksquashfs command
