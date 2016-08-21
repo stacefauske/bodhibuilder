@@ -134,6 +134,7 @@ esac
 ARCH=`archdetect | cut -d/ -f1`
 SUBARCH=`archdetect | cut -d/ -f2`
 CDBOOTTYPE="ISOLINUX"
+UBUVERSION=`lsb_release -r | awk '{print$2}' | cut -d. -f1`
 
 
 ## if the bodhibuilder.conf file is incorrect or missing, make sure to set defaults
@@ -613,8 +614,8 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
 
     # copy over some of the necessary stuff for the livecd
 
-    #check if system has UEFI data to move over
-    if [ -d /etc/bodhibuilder/uefi ] ; then
+    #~ #check if system has UEFI data to move over
+    #~ if [ -d /etc/bodhibuilder/uefi ] ; then # Do we need to check for this folder just to download new packages?
       log_msg "Checking internet connection..."
       netconnstatus=`dig | grep -o 'Got answer'` # report if ANY network hardware is connected
       if [ "${netconnstatus}" ] ; then
@@ -641,11 +642,6 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         apt-get update >>${WORKDIR}/bodhibuilder.log
         log_msg "Installing dpkg-dev if it's not already installed"
         apt-get install -y -q --no-install-recommends dpkg-dev >>${WORKDIR}/bodhibuilder.log #CHARLES
-        # packages to be downloaded and moved into pool: -- ONE directory
-        #~ dlpkg_1="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db shim shim-signed"
-        #~ dlpkg_2="b43-fwcutter bcmwl-kernel-source"
-        #~ dlpkg_3="dkms fakeroot grub-pc libfakeroot libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras lupin-support mouseemu oem-config oem-config-gtk oem-config-slideshow-ubuntu setserial user-setup wvdial"
-        #~ dlpkg_all="${dlpkg_1} ${dlpkg_2} ${dlpkg_3}" # All packages combined
         
         # packages to be downloaded and moved into pool: -- 32/64-bit -- ONE directory
         dlpkg_32="efibootmgr grub-common grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-ia32 grub-efi-ia32-bin grub-pc-bin grub2-common secureboot-db b43-fwcutter bcmwl-kernel-source dkms fakeroot grub-pc libfakeroot libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras lupin-support mouseemu oem-config oem-config-gtk oem-config-slideshow-ubuntu setserial user-setup wvdial" # 32-bit packages
@@ -697,7 +693,10 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       
       # Add custom DISTNAME to UEFI grub
       sed -i 's/__DISTNAME__/'"${DISTNAME}"'/g' ${WORKDIR}/ISOTMP/boot/grub/grub.cfg
-      # move deb files section if all have successfully downloaded: -- ONE directory
+      
+      # now move deb files section if all have successfully downloaded:
+      #  in the above step, the pool dir is copied into ISOTMP
+      #   (still working in dlpkgtempdir if dlpkgpass == 1)
       if [ "${dlpkgpass}" == "1" ] ; then # successful downloads
         log_msg "moving deb files into pool"
         rm -f ${WORKDIR}/ISOTMP/pool/*
@@ -708,10 +707,10 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
         log_msg "no new deb files being copied into pool so as to maintain compatibility"
       fi
       
-    else
-      log_msg "No UEFI folder found at  /etc/bodhibuilder/uefi/"
-      log_msg "This ISO may not be UEFI bootable."
-    fi
+    #~ else
+      #~ log_msg "No UEFI folder found at  /etc/bodhibuilder/uefi/"
+      #~ log_msg "This ISO may not be UEFI bootable."
+    #~ fi
 
     # Creating a repository for the Ubiquity install
     #~ if [ "${ARCH}" = "amd64" ] ; then
@@ -731,30 +730,54 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
     cp /boot/memtest86+.bin ${WORKDIR}/ISOTMP/install/memtest
 
     # BB EFI BOOT
-    # Customize file '/etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu' to point to either
-    # vmlinuz (32b) or vmlinuz.efi (64b) kernel based on the architechture of the system.
+    # Customize file '/etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu' to point to vmlinuz.efi
+    
+    ## ARCH based:
+    #~ if [ "${ARCH}" = "amd64" ] ; then # replace 'vmlinuz' with 'vmlinuz.efi'
+        #~ log_msg "Converting isolinux.cfg.vesamenu to UEFI bootable (vmlinuz.efi)"
+        #~ sed -i 's/vmlinuz$/vmlinuz\.efi/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
+    #~ else # replace 'vmlinuz.efi' with 'vmlinuz'
+        #~ log_msg "Converting isolinux.cfg.vesamenu to 32-bit (vmlinuz)"
+        #~ sed -i 's/vmlinuz\.efi$/vmlinuz/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
+    #~ fi
+    
+    ## BOOT_FIRMWARE based:
     #   ? Base on existence of /sys/firmware/efi/efivars/* files instead so it can be a 32b efi install?
-    if [ "${ARCH}" = "amd64" ] ; then # replace 'vmlinuz' with 'vmlinuz.efi'
-        log_msg "Converting isolinux.cfg.vesamenu to 64-bit (vmlinuz.efi)"
-        sed -i 's/vmlinuz$/vmlinuz\.efi/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
-    else # replace 'vmlinuz.efi' with 'vmlinuz'
-        log_msg "Converting isolinux.cfg.vesamenu to 32-bit (vmlinuz)"
-        sed -i 's/vmlinuz\.efi$/vmlinuz/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
-    fi
+    #~ if [ "${BOOT_FIRMWARE}" = "EFI" ] ; then # replace 'vmlinuz' with 'vmlinuz.efi'
+        #~ log_msg "Converting isolinux.cfg.vesamenu to UEFI boot (vmlinuz.efi)"
+        #~ sed -i 's/vmlinuz$/vmlinuz\.efi/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
+    #~ elif [ "${BOOT_FIRMWARE}" = "BIOS" ] ; then # replace 'vmlinuz.efi' with 'vmlinuz'
+        #~ log_msg "Converting isolinux.cfg.vesamenu to NON-UEFI boot (vmlinuz)"
+        #~ sed -i 's/vmlinuz\.efi$/vmlinuz/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
+    #~ fi
+    
+    ## Just make it vmlinuz.efi:
+    # (Reason to do this -- /etc/bodhibuilder/uefi/boot/grub/grub.cfg file points to vmlinuz.efi,
+    #  as does /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu, by default. So far, vmlinuz.efi
+    #  has not hurt anything even if it's not a remaster in a UEFI booted system.)
+    # Forget the above stuff, and have isolinux just point to vmlinuz.efi like this:
+    log_msg "Ensuring isolinux.cfg.vesamenu is UEFI bootable (vmlinuz.efi)"
+    sed -i 's/vmlinuz$/vmlinuz\.efi/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu
+
+
+
 
     # check and see if they have a custom isolinux already setup. eg. they copied over
     # the isolinux folder from their original livecd or made a custom one for their distro
-    if [ ! -f /etc/bodhibuilder/customisolinux/isolinux.cfg ] ; then
+    # and get files isohdpfx.bin & isolinux.bin
+    if [ ! -f /etc/bodhibuilder/customisolinux/isolinux.cfg ] ; then # no custom isolinux (bb default)
         log_msg "Creating isolinux setup for the live system"
-        find /usr -name 'isolinux.bin' -exec cp {} ${WORKDIR}/ISOTMP/isolinux/ \;
+        find /usr/lib/ -name 'isohdpfx.bin' -exec cp -f {} ${WORKDIR}/ISOTMP/isolinux/ \;
+        find /usr/lib/ -name 'isolinux.bin' -exec cp -f {} ${WORKDIR}/ISOTMP/isolinux/ \;
         #find fix for vesamenu.32 provided by Krasimir S. Stefanov <lokiisyourmaster@gmail.com>
-        VESAMENU=`find /usr -print0 | grep -FzZ "syslinux/vesamenu.c32"`
+        #~ VESAMENU=`find /usr -print0 | grep -FzZ "syslinux/vesamenu.c32"`
+        VESAMENU=`find /usr/lib/ -name "vesamenu.c32" | grep "syslinux/vesamenu.c32"`
         cp ${VESAMENU} ${WORKDIR}/ISOTMP/isolinux/
         # setup isolinux for the livecd
         VERSION=`lsb_release -r | awk '{print $2}' | awk -F "." '{print $1}'`
         sed -e 's/__DISTNAME__/'"${DISTNAME}"'/g' /etc/bodhibuilder/isolinux/isolinux.cfg.vesamenu > ${WORKDIR}/ISOTMP/isolinux/isolinux.cfg
         cp /etc/bodhibuilder/isolinux/splash.png ${WORKDIR}/ISOTMP/isolinux/splash.png
-    else
+    else # custom isolinux
         log_msg "Copying your custom isolinux setup to the live system"
         cp /etc/bodhibuilder/customisolinux/* ${WORKDIR}/ISOTMP/isolinux/ &> /dev/null
     fi
@@ -943,17 +966,34 @@ FOO
 
 
     log_msg "Copying your kernel and initrd for the livecd"
-    #new
-    # first check to see if it's 64bit,
-    # 64bit needs vmlinuz.efi
-    if [ "${ARCH}" = "amd64" ] ; then
-        log_msg "Creating casper/vmlinuz.efi"
+    # new #
+    
+    ## ARCH based:
+    #~ if [ "${ARCH}" = "amd64" ] ; then
+        #~ log_msg "Creating casper/vmlinuz.efi"
         # simply renaming it to vmlinuz.efi hasn't hurt anything so far:
-        cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz.efi
-    else
-        log_msg "Creating casper/vmlinuz"
-        cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz
-    fi
+        #~ cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz.efi
+    #~ else
+        #~ log_msg "Creating casper/vmlinuz"
+        #~ cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz
+    #~ fi
+    
+    ## BOOT_FIRMWARE based:
+    #~ if [ "${BOOT_FIRMWARE}" = "EFI" ] ; then
+        #~ log_msg "Creating casper/vmlinuz.efi"
+        #~ cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz.efi
+    #~ elif [ "${BOOT_FIRMWARE}" = "BIOS" ] ; then
+        #~ log_msg "Creating casper/vmlinuz"
+        #~ cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz
+    #~ fi
+    
+    ## Just make it vmlinuz.efi:
+    #   (As stated earlier, so far, vmlinuz.efi has not hurt anything 
+    #    even if it's not a remaster in a UEFI booted system.)
+    log_msg "Creating casper/vmlinuz.efi"
+    cp /boot/vmlinuz-`uname -r` ${WORKDIR}/ISOTMP/casper/vmlinuz.efi
+
+
 
 
     # Copy initrd into casper
@@ -990,10 +1030,12 @@ FOO
 
     #exit if missing... either vmlinuz or vmlinuz.efi
     if [ ! -f ${WORKDIR}/ISOTMP/casper/vmlinuz.efi ] ; then
-        if [ ! -f ${WORKDIR}/ISOTMP/casper/vmlinuz ] ; then
-            log_msg "Missing valid kernel. Exiting"
-            exit 1
-        fi
+        log_msg "vmlinuz.efi not found in casper. Exiting"
+        exit 1
+        #~ if [ ! -f ${WORKDIR}/ISOTMP/casper/vmlinuz ] ; then
+            #~ log_msg "Missing valid kernel. Exiting"
+            #~ exit 1
+        #~ fi
     fi
 
     #exit if missing... initrd.lz
