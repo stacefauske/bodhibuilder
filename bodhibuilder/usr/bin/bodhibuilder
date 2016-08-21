@@ -189,6 +189,21 @@ log_msg() {
 #~ }
 
 
+# What type of remaster is it?
+case $1  in
+    backup|-b )
+        log_msg "System Backup Mode Selected"
+        log_msg ""
+        OPT1="backup"
+    ;;
+    dist|-d )
+        log_msg "Distribution Mode Selected"
+        log_msg ""
+        OPT1="dist"
+    ;;
+esac
+
+
 # what kind of disk space are we dealing with to begin?
 echo "------------------------------------------------------" >>${WORKDIR}/bodhibuilder.log
 echo "Original disk size information" >>${WORKDIR}/bodhibuilder.log
@@ -266,21 +281,6 @@ else
 fi
 
 
-# put custom repositories into firstboot file so they will be entered into sources.list
-#   firstboot file = /etc/bodhibuilder/firstboot/file-firstboot
-### INWORK ###
-#~ if [ "${SYSREPOS}" ] ; then
-  #~ repochk=1
-  #~ repono="0"
-  #~ until [ ${repochk} -eq 0 ] ; do
-    #~ repono="$((repono + 1))"
-    #~ repo${repono}=`echo ${SYSREPOS} | cut -d\| -f${repono} | sed -e 's/^ //'`
-    #~ if [ ! "${repo}${repono}" ] ; then
-      #~ repochk=0
-    #~ fi
-  #~ done
-  #~ log_msg "Number of repositories to add to sources.list:  ${repono}" 
-#~ fi
 
 
 
@@ -306,33 +306,8 @@ fi
 
 
 if [ ! "${CUSTOMISO}" ] ; then # if we still don't have an iso name
-    CUSTOMISO="custom$1.iso"
+    CUSTOMISO="custom_${OPT1}.iso"
 fi
-
-
-
-
-# What type of remaster is it?
-case $1  in
-    backup|-b )
-        log_msg "System Backup Mode Selected"
-        OPT1="backup"
-    ;;
-    clean|-c )
-        echo "Removing the build directory now..."
-        rm -rf ${WORKDIR}
-        echo "Done...Exiting"
-        exit 0
-    ;;
-    dist|-d )
-        log_msg "Distribution Mode Selected"
-        OPT1="dist"
-    ;;
-    * )
-        helper
-        exit 1
-    ;;
-esac
 
 
 
