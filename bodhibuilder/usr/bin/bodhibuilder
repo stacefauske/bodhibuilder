@@ -1318,22 +1318,24 @@ iso (){
 
 
     # if file isohdpfx.bin doesn't exist, don't use xorriso
-    if [ ! -f "${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin" ] ; then
-      log_msg "File '${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin' not found."
-      log_msg "Can't use xorriso."
-      CREATEISO="`which genisoimage`"
-      ISOCMD="genisoimage"
-      if [ ! "${CREATEISO}" ] ; then
-        CREATEISO="`which mkisofs`"
-        ISOCMD="mkisofs"
+    #~ if [ "${ARCH}" == "amd64" ] ; then
+      if [ ! -f "${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin" ] ; then
+        log_msg "File '${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin' not found."
+        log_msg "Can't use xorriso."
+        CREATEISO="`which genisoimage`"
+        ISOCMD="genisoimage"
+        if [ ! "${CREATEISO}" ] ; then
+          CREATEISO="`which mkisofs`"
+          ISOCMD="mkisofs"
+        fi
+        case ${CREATEISO} in
+          *genisoimage|*mkisofs )
+            log_msg "   No longer using xorriso..."
+            log_msg "   Now using '${ISOCMD}' @ '${CREATEISO}' to create the ISO."
+          ;;
+        esac
       fi
-      case ${CREATEISO} in
-        *genisoimage|*mkisofs )
-          log_msg "   No longer using xorriso..."
-          log_msg "   Now using '${ISOCMD}' @ '${CREATEISO}' to create the ISO."
-        ;;
-      esac
-    fi
+    #~ fi
 
     # set ISO creation command based on architecture
     # and then create the ISO
@@ -1343,23 +1345,7 @@ iso (){
       # do xorriso, genisoimage, or mkisofs depending on which will work best:
       case ${CREATEISO} in
         *xorriso* ) # Possibly create ISO using /usr/bin/xorriso - must be 64-bit OS
-            # check the architecture
-            case ${ARCH} in
-              amd64 ) # If 64-bit, keep using xorriso
-                log_msg "  64-bit architecture -- Using ${ISOCMD} to create the ISO"
-                isopass=1
-              ;;
-              * ) # if not 64-bit, use something else besides xorriso
-                log_msg "xorriso only supported in 64-bit OS, attempting to use another program to create the ISO."
-                CREATEISO="`which genisoimage`"
-                ISOCMD="genisoimage"
-                if [ "${CREATEISO}" = "" ] ; then
-                  CREATEISO="`which mkisofs`"
-                  ISOCMD="mkisofs"
-                fi
-                isopass=0
-              ;;
-            esac # end arch check
+          isopass=1 # Use xorriso regardless of ${ARCH}
         ;; # end xorriso case select
            # if isopass=0, goes back to beginning of loop
         
@@ -1383,7 +1369,7 @@ iso (){
           
           # check architecture
           if [ ! "${ARCH}" = "amd64" ] ; then
-            log_msg "This ISO may not be UEFI bootable. At this time, UEFI is only supported in 64-bit OS."
+            log_msg "This ISO may not be UEFI bootable. At this time, UEFI is only fully supported in 64-bit OS."
           fi
           
           isopass=1
@@ -1409,23 +1395,48 @@ iso (){
             #   - Can boot to ISO in either UEFI or non-UEFI mode when dd'd to a USB, CD or DVD
             #   - Copy direct to CD or DVD using command:  sudo xorrecord dev=/dev/sr0 speed=12 fs=8m blank=as_needed -eject padsize=300k file.iso
             #   - Copy direct to USB using command:  sudo dd if=file.iso of=/dev/sdX
-            ${CREATEISO} -as mkisofs \
-              -isohybrid-mbr ${WORKDIR}/ISOTMP/syslinux/isohdpfx.bin \
-              -partition_offset 98 \
-              -cache-inodes -J -l \
-              -iso-level 3 \
-              -V "${LIVECDLABEL}" \
-              -c isolinux/boot.cat \
-              -b isolinux/isolinux.bin \
-              -no-emul-boot \
-              -boot-load-size 4 \
-              -boot-info-table \
-              -eltorito-alt-boot \
-              -e boot/grub/efi.img \
-              -no-emul-boot \
-              -isohybrid-gpt-basdat \
-              -isohybrid-apm-hfsplus \
-              -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+            case ${ARCH} in
+              amd64 )
+                log_msg "creating 64-bit ISO with xorriso"
+                ${CREATEISO} -as mkisofs \
+                  -isohybrid-mbr ${WORKDIR}/ISOTMP/isolinux/isohdpfx.bin \
+                  -partition_offset 98 \
+                  -cache-inodes -J -l \
+                  -iso-level 3 \
+                  -V "${LIVECDLABEL}" \
+                  -c isolinux/boot.cat \
+                  -b isolinux/isolinux.bin \
+                  -no-emul-boot \
+                  -boot-load-size 4 \
+                  -boot-info-table \
+                  -eltorito-alt-boot \
+                  --efi-boot boot/grub/efi.img \
+                  -no-emul-boot \
+                  -isohybrid-gpt-basdat \
+                  -isohybrid-apm-hfsplus \
+                  -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+              ;;
+              * ) # 32-bit arch using xorriso
+                log_msg "creating 32-bit ISO with xorriso"
+                ${CREATEISO} -as mkisofs \
+                  -isohybrid-mbr ${WORKDIR}/ISOTMP/isolinux/isohdpfx.bin \
+                  -partition_offset 98 \
+                  -cache-inodes -J -l \
+                  -iso-level 3 \
+                  -V "${LIVECDLABEL}" \
+                  -c isolinux/boot.cat \
+                  -b isolinux/isolinux.bin \
+                  -no-emul-boot \
+                  -boot-load-size 4 \
+                  -boot-info-table \
+                  -eltorito-alt-boot \
+                  --efi-boot boot/grub/efi.img \
+                  -no-emul-boot \
+                  -isohybrid-gpt-basdat \
+                  -isohybrid-apm-hfsplus \
+                  -o ${WORKDIR}/${CUSTOMISO} "${WORKDIR}/ISOTMP" 2>>${WORKDIR}/bodhibuilder.log 1>>${WORKDIR}/bodhibuilder.log
+              ;;
+            esac
         ;;
         *genisoimage|*mkisofs ) # 
             log_msg "creating ISO with ${ISOCMD}"
