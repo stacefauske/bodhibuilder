@@ -854,6 +854,16 @@ FOO
         cp -f /etc/bodhibuilder/ubiquity/ubiquity.desktop /usr/share/applications/
         echo "- set custom name to 'Install ${LIVECDLABEL}'" >>${WORKDIR}/bodhibuilder.log
         sed -i "s/_LIVE_CD_LABEL_/${LIVECDLABEL}/" /usr/share/applications/ubiquity.desktop &> /dev/null
+        #new
+        if [ -e ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf ] ; then
+          alogin_user=`grep 'autologin-user=' ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf`
+          if [ "${alogin_user}" ] ; then
+            sed -i "s/^autologin-user=.*$/autologin-user=${LIVEUSER}/" ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf
+          else
+            echo "autologin-user=${LIVEUSER}" >> ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf
+          fi
+        fi
+        #new END
     fi # end $OPT1 = backup or dist
 
 
