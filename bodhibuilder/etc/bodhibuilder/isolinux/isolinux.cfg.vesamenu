@@ -31,7 +31,7 @@ label hd
   localboot 0x80
   append -
 
-label hd
-  menu label hd - boot first hard disk (VirtualBox)
+label hdVB
+  menu label hdVB - boot first hard disk (VirtualBox)
   kernel chain.c32
   append hd0 0

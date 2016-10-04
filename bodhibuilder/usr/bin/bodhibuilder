@@ -674,7 +674,7 @@ log_msg "${WORKDIR} is on a ${DIRTYPE} filesystem"
       #   (still working in dlpkgtempdir if dlpkgpass == 1)
       if [ "${dlpkgpass}" == "1" ] ; then # successful downloads
         log_msg "moving deb files into pool"
-        rm -f ${WORKDIR}/ISOTMP/pool/*
+        rm -rf ${WORKDIR}/ISOTMP/pool/*
         mv ./* ${WORKDIR}/ISOTMP/pool/ # mv all new files from dlpkgpass into pool
         cd -
         rm -rf ./dlpkgtempdir
@@ -854,7 +854,6 @@ FOO
         cp -f /etc/bodhibuilder/ubiquity/ubiquity.desktop /usr/share/applications/
         echo "- set custom name to 'Install ${LIVECDLABEL}'" >>${WORKDIR}/bodhibuilder.log
         sed -i "s/_LIVE_CD_LABEL_/${LIVECDLABEL}/" /usr/share/applications/ubiquity.desktop &> /dev/null
-        #new
         if [ -e ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf ] ; then
           alogin_user=`grep 'autologin-user=' ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf`
           if [ "${alogin_user}" ] ; then
@@ -863,7 +862,6 @@ FOO
             echo "autologin-user=${LIVEUSER}" >> ${WORKDIR}/dummysys/etc/lightdm/lightdm.conf
           fi
         fi
-        #new END
     fi # end $OPT1 = backup or dist
 
 
